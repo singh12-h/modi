@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:uuid/uuid.dart';
 import 'prescription_page.dart';
 import 'consultation_screen.dart';
 import 'models.dart';
@@ -27,6 +28,7 @@ class _PatientDetailViewState extends State<PatientDetailView> {
   List<Prescription> _currentPrescriptions = [];
   List<Consultation> _consultations = [];
   List<Payment> _payments = [];
+  List<PaymentInstallment> _installmentPayments = [];
   bool _isLoading = true;
 
   @override
@@ -58,14 +60,16 @@ class _PatientDetailViewState extends State<PatientDetailView> {
       final prescriptions = await _db.getCurrentPrescriptions(_patient!.id);
       final consultations = await _db.getConsultations(_patient!.id);
       final payments = await _db.getPaymentsByPatient(_patient!.id);
+      final installments = await _db.getPaymentInstallmentsByPatient(_patient!.id);
       
-      print('PatientDetailView: Loaded ${consultations.length} consultations, ${payments.length} payments');
+      print('PatientDetailView: Loaded ${consultations.length} consultations, ${payments.length} payments, ${installments.length} installments');
 
       setState(() {
         _medicalHistory = medHistory;
         _currentPrescriptions = prescriptions;
         _consultations = consultations;
         _payments = payments;
+        _installmentPayments = installments;
         _isLoading = false;
       });
     } catch (e) {
@@ -240,13 +244,142 @@ class _PatientDetailViewState extends State<PatientDetailView> {
   }
 
   Widget _buildPaymentStatus() {
-    // Find the most recent pending payment, or the most recent payment
+    // Check for installment payments first
+    if (_installmentPayments.isNotEmpty) {
+      final installment = _installmentPayments.first;
+      final isFullPaid = installment.status == 'FULL_PAID';
+      final isPartial = installment.status == 'PARTIAL';
+      
+      Color statusColor;
+      IconData statusIcon;
+      String statusText;
+      
+      if (isFullPaid) {
+        statusColor = Colors.green;
+        statusIcon = Icons.check_circle;
+        statusText = 'Payment Complete';
+      } else if (isPartial) {
+        statusColor = Colors.orange;
+        statusIcon = Icons.pending;
+        statusText = 'Partial Payment';
+      } else {
+        statusColor = Colors.red;
+        statusIcon = Icons.pending_actions;
+        statusText = 'Payment Pending';
+      }
+
+      return Card(
+        elevation: 2,
+        color: isFullPaid ? const Color(0xFFE8F5E9) : (isPartial ? const Color(0xFFFFF3E0) : const Color(0xFFFFEBEE)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: statusColor.withOpacity(0.5)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: statusColor,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(statusIcon, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          statusText,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: statusColor.shade700,
+                          ),
+                        ),
+                        Text(
+                          'Total: ₹${installment.totalAmount.toStringAsFixed(0)}',
+                          style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Edit Button - Only when not full paid
+                  if (!isFullPaid)
+                    IconButton(
+                      onPressed: () => _showEditInstallmentDialog(installment),
+                      icon: const Icon(Icons.edit, color: Color(0xFF6B21A8)),
+                      tooltip: 'Edit Bill',
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Payment Details Row
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildPaymentInfoChip('Paid', '₹${installment.paidAmount.toStringAsFixed(0)}', Colors.green),
+                    _buildPaymentInfoChip('Remaining', '₹${installment.remainingAmount.toStringAsFixed(0)}', Colors.red),
+                  ],
+                ),
+              ),
+              // Action Buttons
+              if (!isFullPaid) ...[
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _addInstallmentPayment(installment),
+                        icon: const Icon(Icons.payment, size: 18),
+                        label: const Text('Add Payment'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6B21A8),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _markInstallmentFullPaid(installment),
+                        icon: const Icon(Icons.check_circle, size: 18),
+                        label: const Text('Full Paid'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Fallback to regular payment display
     Payment? displayPayment;
     if (_payments.isNotEmpty) {
-      // Prefer pending payments
       displayPayment = _payments.firstWhere(
         (p) => p.status.toLowerCase() == 'pending',
-        orElse: () => _payments.first, // Assuming sorted by date desc, or just take first
+        orElse: () => _payments.first,
       );
     }
 
@@ -347,6 +480,327 @@ class _PatientDetailViewState extends State<PatientDetailView> {
         ),
       ),
     );
+  }
+
+  Widget _buildPaymentInfoChip(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color),
+        ),
+      ],
+    );
+  }
+
+  // Add payment to installment
+  Future<void> _addInstallmentPayment(PaymentInstallment installment) async {
+    final amountController = TextEditingController();
+    String paymentMode = 'Cash';
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('💵 Add Payment'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.pending, color: Colors.red),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Remaining: ₹${installment.remainingAmount.toStringAsFixed(0)}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: amountController,
+                decoration: const InputDecoration(
+                  labelText: 'Amount Paying',
+                  prefixText: '₹ ',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                autofocus: true,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: paymentMode,
+                decoration: const InputDecoration(
+                  labelText: 'Payment Mode',
+                  border: OutlineInputBorder(),
+                ),
+                items: ['Cash', 'UPI', 'Card', 'Cheque']
+                    .map((mode) => DropdownMenuItem(value: mode, child: Text(mode)))
+                    .toList(),
+                onChanged: (value) => setState(() => paymentMode = value!),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final amount = double.tryParse(amountController.text) ?? 0.0;
+                if (amount <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('❌ Amount must be greater than 0'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+                if (amount > installment.remainingAmount) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('❌ Amount exceeds remaining balance'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+                Navigator.pop(context, true);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6B21A8), foregroundColor: Colors.white),
+              child: const Text('Add Payment'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result == true) {
+      final amount = double.tryParse(amountController.text) ?? 0.0;
+      final receiptNumber = _db.generateReceiptNumber();
+      const uuid = Uuid();
+      
+      final transaction = PaymentTransaction(
+        id: uuid.v4(),
+        paymentId: installment.id,
+        amountPaid: amount,
+        paymentMode: paymentMode,
+        receivedBy: 'Doctor',
+        receiptNumber: receiptNumber,
+        notes: 'Payment added',
+      );
+      
+      await _db.addPaymentTransaction(transaction);
+      _loadPatientData();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('✅ Payment added: ₹${amount.toStringAsFixed(0)}'), backgroundColor: Colors.green),
+        );
+      }
+    }
+  }
+
+  // Mark installment as full paid
+  Future<void> _markInstallmentFullPaid(PaymentInstallment installment) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('✅ Mark as Full Paid?'),
+        content: Text('Patient: ${installment.patientName}\n\nPaying: ₹${installment.remainingAmount.toStringAsFixed(0)}'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      const uuid = Uuid();
+      final receiptNumber = _db.generateReceiptNumber();
+      
+      final transaction = PaymentTransaction(
+        id: uuid.v4(),
+        paymentId: installment.id,
+        amountPaid: installment.remainingAmount,
+        paymentMode: 'Cash',
+        receivedBy: 'Doctor',
+        receiptNumber: receiptNumber,
+        notes: 'Final Payment - Full Paid',
+      );
+      
+      await _db.addPaymentTransaction(transaction);
+      _loadPatientData();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('🎉 ${installment.patientName} - FULL PAID!'), backgroundColor: Colors.green),
+        );
+      }
+    }
+  }
+
+  // Edit installment bill
+  Future<void> _showEditInstallmentDialog(PaymentInstallment installment) async {
+    final consultationController = TextEditingController(text: installment.serviceCharges.toStringAsFixed(0));
+    final otherController = TextEditingController(text: installment.instrumentCharges.toStringAsFixed(0));
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          final consultation = double.tryParse(consultationController.text) ?? 0.0;
+          final other = double.tryParse(otherController.text) ?? 0.0;
+          final newTotal = consultation + other;
+          final newRemaining = newTotal - installment.paidAmount;
+          
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.edit, color: Color(0xFF6B21A8)),
+                const SizedBox(width: 8),
+                const Expanded(child: Text('Edit Bill', style: TextStyle(fontSize: 16))),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (installment.paidAmount > 0)
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange),
+                      ),
+                      child: Text(
+                        'Already Paid: ₹${installment.paidAmount.toStringAsFixed(0)}\nNew total must be ≥ paid amount',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  TextField(
+                    controller: consultationController,
+                    decoration: const InputDecoration(
+                      labelText: 'Consultation Fees',
+                      prefixText: '₹ ',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: otherController,
+                    decoration: const InputDecoration(
+                      labelText: 'Other Charges',
+                      prefixText: '₹ ',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6B21A8).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('New Total:', style: TextStyle(fontWeight: FontWeight.bold)),
+                            Text('₹${newTotal.toStringAsFixed(0)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B21A8))),
+                          ],
+                        ),
+                        if (installment.paidAmount > 0) ...[
+                          const Divider(),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('New Remaining:'),
+                              Text(
+                                '₹${newRemaining.toStringAsFixed(0)}',
+                                style: TextStyle(fontWeight: FontWeight.bold, color: newRemaining <= 0 ? Colors.green : Colors.red),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+              ElevatedButton(
+                onPressed: () {
+                  if (newTotal <= 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('❌ Total must be > 0'), backgroundColor: Colors.red),
+                    );
+                    return;
+                  }
+                  if (newTotal < installment.paidAmount) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('❌ Total cannot be less than paid amount'), backgroundColor: Colors.red),
+                    );
+                    return;
+                  }
+                  Navigator.pop(context, true);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6B21A8), foregroundColor: Colors.white),
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (result == true) {
+      final consultation = double.tryParse(consultationController.text) ?? 0.0;
+      final other = double.tryParse(otherController.text) ?? 0.0;
+      final newTotal = consultation + other;
+      final newRemaining = newTotal - installment.paidAmount;
+      
+      final updatedInstallment = PaymentInstallment(
+        id: installment.id,
+        patientId: installment.patientId,
+        patientName: installment.patientName,
+        totalAmount: newTotal,
+        instrumentCharges: other,
+        serviceCharges: consultation,
+        paidAmount: installment.paidAmount,
+        remainingAmount: newRemaining > 0 ? newRemaining : 0,
+        status: newRemaining <= 0 ? 'FULL_PAID' : installment.status,
+        createdAt: installment.createdAt,
+        appointmentId: installment.appointmentId,
+      );
+
+      await _db.updatePaymentInstallment(updatedInstallment);
+      _loadPatientData();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('✅ Bill updated: ₹${newTotal.toStringAsFixed(0)}'), backgroundColor: Colors.green),
+        );
+      }
+    }
   }
 
   Widget _buildCompactHeader() {

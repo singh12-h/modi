@@ -3,6 +3,7 @@ import 'package:modi/database_helper.dart';
 import 'package:modi/models.dart';
 import 'package:intl/intl.dart';
 import 'pdf_service.dart';
+import 'payment_installment_screen.dart';
 
 class PaymentManagement extends StatefulWidget {
   final bool isStaff;
@@ -88,6 +89,27 @@ class _PaymentManagementState extends State<PaymentManagement> with SingleTicker
         title: const Text('Payment Management'),
         backgroundColor: const Color(0xFF6B21A8),
         foregroundColor: Colors.white,
+        actions: [
+          // Installment Payments Button
+          TextButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PaymentInstallmentScreen(
+                    isStaff: widget.isStaff,
+                    userName: widget.isStaff ? 'Staff' : 'Doctor',
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.receipt_long, color: Colors.white),
+            label: const Text(
+              'Installments',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,

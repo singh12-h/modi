@@ -1,0 +1,1476 @@
+import 'package:flutter/material.dart';
+import 'dart:math';
+import 'dart:async';
+import 'dart:ui';
+import 'glassmorphism.dart';
+import 'package:auto_size_text/auto_size_text.dart';
+import 'patient_registration_form.dart';
+import 'appointment_management.dart';
+import 'patient_search.dart';
+import 'reports_analytics.dart';
+import 'medicine_database.dart';
+import 'settings_configuration.dart';
+import 'notifications_center.dart';
+import 'login_selection_page.dart';
+import 'models.dart';
+import 'book_appointment.dart';
+import 'consultation_screen.dart';
+import 'doctor_schedule_calendar.dart';
+import 'email_features.dart';
+import 'lab_reports_management.dart';
+import 'opd_staff_dashboard.dart';
+import 'patient_feedback_system.dart';
+import 'patient_history_timeline.dart';
+import 'patient_qr_code.dart';
+import 'prescription_page.dart';
+import 'prescription_templates.dart';
+import 'staff_dashboard.dart';
+import 'waiting_room_display.dart';
+import 'sms_integration.dart';
+import 'whatsapp_integration.dart';
+
+class HoverableWidget extends StatefulWidget {
+  final Function(bool) onHover;
+  final Widget Function(BuildContext, bool) builder;
+
+  const HoverableWidget({super.key, required this.onHover, required this.builder});
+
+  @override
+  State<HoverableWidget> createState() => _HoverableWidgetState();
+}
+
+class _HoverableWidgetState extends State<HoverableWidget> {
+  bool isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() => isHovering = true);
+        widget.onHover(true);
+      },
+      onExit: (_) {
+        setState(() => isHovering = false);
+        widget.onHover(false);
+      },
+      child: widget.builder(context, isHovering),
+    );
+  }
+}
+
+// Responsive Layout Builder
+class Responsive extends StatelessWidget {
+  final Widget mobile;
+  final Widget tablet;
+  final Widget desktop;
+
+  const Responsive({
+    super.key,
+    required this.mobile,
+    required this.tablet,
+    required this.desktop,
+  });
+
+  static bool isMobile(BuildContext context) => MediaQuery.of(context).size.width < 768;
+  static bool isTablet(BuildContext context) => MediaQuery.of(context).size.width >= 768 && MediaQuery.of(context).size.width < 1440;
+  static bool isDesktop(BuildContext context) => MediaQuery.of(context).size.width >= 1440;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isDesktop(context)) return desktop;
+    if (isTablet(context)) return tablet;
+    return mobile;
+  }
+}
+
+// Color Palette
+class AppColors {
+  static const Color primaryBlue = Color(0xFF0A2463);
+  static const Color electricBlue = Color(0xFF3E92CC);
+  static const Color vibrantCyan = Color(0xFF00D9FF);
+  static const Color emeraldGreen = Color(0xFF00E5A0);
+  static const Color coral = Color(0xFFFF6B9D);
+  static const Color darkNavy = Color(0xFF1A1A2E);
+  static const Color neutralGray = Color(0xFF6B7280);
+  static const Color background = Color(0xFFF9FAFB);
+  static const Color cardWhite = Colors.white;
+  static const Color warningOrange = Color(0xFFFF9800);
+  static const Color infoCyan = Color(0xFF00BCD4);
+  static const Color successGreen = Color(0xFF4CAF50);
+  static const Color dangerRed = Color(0xFFF44336);
+
+  // Dark mode colors
+  static const Color darkBackground = Color(0xFF121212);
+  static const Color darkCard = Color(0xFF1E1E1E);
+  static const Color darkText = Color(0xFFE0E0E0);
+  static const Color darkTextSecondary = Color(0xFFB0B0B0);
+}
+
+class DoctorDashboard extends StatefulWidget {
+  const DoctorDashboard({super.key});
+
+  @override
+  State<DoctorDashboard> createState() => _DoctorDashboardState();
+}
+
+class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderStateMixin {
+  late TabController _tabController;
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+  late AnimationController _sidebarAnimationController;
+  late Animation<double> _sidebarWidthAnimation;
+  bool _isSidebarExpanded = false;
+  bool _isSidebarVisible = false;
+  Timer? _sidebarTimer;
+  Timer? _visibilityTimer;
+  String _hoveredMenuItem = '';
+  Widget? _currentScreen;
+  Widget _dashboardContent = Container(); // Placeholder for dashboard content
+
+  // Sample patient data with status management
+
+  List<Patient> patients = [
+
+    Patient(
+      id: '1',
+      name: 'Alice Johnson',
+      token: 'OPD-001',
+      age: '30',
+      gender: 'Female',
+      mobile: '+91-98765-43210',
+      status: PatientStatus.waiting,
+    ),
+    Patient(
+      id: '2',
+      name: 'Bob Smith',
+      token: 'OPD-002',
+      age: '45',
+      gender: 'Male',
+      mobile: '+91-98765-43211',
+      status: PatientStatus.waiting,
+    ),
+    Patient(
+      id: '3',
+      name: 'Charlie Brown',
+      token: 'OPD-003',
+      age: '28',
+      gender: 'Male',
+      mobile: '+91-98765-43212',
+      status: PatientStatus.inProgress,
+    ),
+    Patient(
+      id: '4',
+      name: 'Diana Wilson',
+      token: 'OPD-004',
+      age: '35',
+      gender: 'Female',
+      mobile: '+91-98765-43213',
+      status: PatientStatus.completed,
+    ),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _fadeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_fadeController);
+    _sidebarAnimationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+    _sidebarWidthAnimation = Tween<double>(begin: 60.0, end: 250.0).animate(_sidebarAnimationController);
+    _isSidebarVisible = false; // Sidebar hidden by default
+    _isSidebarExpanded = false; // Will be set in didChangeDependencies
+    _currentScreen = null; // Start with dashboard
+    _fadeController.forward();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _isSidebarExpanded = Responsive.isDesktop(context) ? true : false;
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _fadeController.dispose();
+    _sidebarAnimationController.dispose();
+    _sidebarTimer?.cancel();
+    _visibilityTimer?.cancel();
+    super.dispose();
+  }
+
+  void _updatePatientStatus(String patientId, PatientStatus newStatus) {
+    setState(() {
+      final patient = patients.firstWhere((p) => p.id == patientId);
+      patient.status = newStatus;
+      
+      if (newStatus == PatientStatus.inProgress) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Notification sent to OPD Staff: Patient ${patient.name} is now in consultation')),
+        );}
+      }
+    });
+  }
+
+  void _logout(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Logout'),
+          content: const Text('Are you sure you want to logout?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginSelectionPage()),
+                  (Route<dynamic> route) => false,
+                );
+              },
+              child: const Text('Logout', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSidebarMenuItem(IconData icon, String label, bool isActive) {
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() => _hoveredMenuItem = label);
+        _expandSidebar();
+        _resetVisibilityTimer();
+      },
+      onExit: (_) {
+        setState(() => _hoveredMenuItem = '');
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: isActive ? Colors.white.withOpacity(0.2) : (_hoveredMenuItem == label ? Colors.white.withOpacity(0.1) : Colors.transparent),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        margin: const EdgeInsets.symmetric(vertical: 2.0, horizontal: 8.0),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+          title: _isSidebarExpanded
+              ? Row(
+                  children: [
+                    Icon(icon, color: Colors.black, size: 20),
+                    const SizedBox(width: 16),
+                    Text(
+                      label,
+                      style: TextStyle(color: Colors.black, fontSize: 14, fontWeight: isActive || _hoveredMenuItem == label ? FontWeight.bold : FontWeight.normal),
+                    ),
+                  ],
+                )
+              : Icon(icon, color: Colors.black, size: 20),
+          onTap: () {
+            _navigateToScreen(label);
+          },
+        ),
+      ),
+    );
+  }
+
+  void _expandSidebar() {
+    if (!_isSidebarExpanded) {
+      setState(() {
+        _isSidebarExpanded = true;
+        _sidebarAnimationController.forward();
+      });
+    }
+    _sidebarTimer?.cancel();
+  }
+
+  void _collapseSidebar() {
+    if (_isSidebarExpanded) {
+      setState(() {
+        _isSidebarExpanded = false;
+        _sidebarAnimationController.reverse();
+      });
+    }
+  }
+
+  void _startSidebarTimer() {
+    _sidebarTimer?.cancel();
+    _sidebarTimer = Timer(const Duration(milliseconds: 500), _collapseSidebar);
+  }
+
+  void _resetVisibilityTimer() {
+    // No timer, immediate hide
+  }
+
+  void _startVisibilityTimer() {
+    if (mounted) {
+      setState(() => _isSidebarVisible = false);
+    }
+  }
+
+  void _navigateToScreen(String label) {
+    Widget? screen;
+    switch (label) {
+      case 'Dashboard':
+        setState(() => _currentScreen = null);
+        break;
+      case 'Patients':
+        screen = const PatientSearch();
+        break;
+      case 'Appointments':
+        screen = const AppointmentManagement();
+        break;
+      case 'Notifications':
+        screen = const NotificationsCenter();
+        break;
+      case 'Reports':
+        screen = const ReportsAnalytics();
+        break;
+      case 'Medicine':
+        screen = const MedicineDatabase();
+        break;
+      case 'Settings':
+        screen = const SettingsConfiguration();
+        break;
+      case 'Book Appointment':
+        screen = const BookAppointment();
+        break;
+      case 'Consultation':
+        screen = const ConsultationScreen();
+        break;
+      case 'Schedule':
+        screen = const DoctorScheduleCalendar();
+        break;
+      case 'Patient QR':
+        screen = const PatientQrCode();
+        break;
+      case 'Feedback':
+        screen = const PatientFeedbackSystem();
+        break;
+      case 'History':
+        screen = const PatientHistoryTimeline();
+        break;
+      case 'Waiting Room':
+        screen = const WaitingRoomDisplay();
+        break;
+      case 'OPD Staff':
+        screen = const OPDStaffDashboard();
+        break;
+      case 'Staff':
+        screen = const StaffDashboard();
+        break;
+      case 'Email':
+        screen = const EmailFeatures();
+        break;
+      case 'SMS':
+        screen = const SmsIntegration();
+        break;
+case 'WhatsApp':
+  screen = WhatsAppIntegration();
+  break;
+      case 'Lab Reports':
+        screen = const LabReportsManagement();
+        break;
+      case 'Prescription':
+        screen = const PrescriptionPage();
+        break;
+      case 'Templates':
+        screen = const PrescriptionTemplates();
+        break;
+      case 'Logout':
+        _logout(context);
+        break;
+    }
+    if (screen != null) {
+      setState(() => _currentScreen = screen);
+    }
+  }
+
+  Widget _buildSidebar() {
+    Widget sidebarContent = Container(
+      width: Responsive.isDesktop(context) ? 250.0 : _sidebarWidthAnimation.value,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: Responsive.isDesktop(context)
+              ? [
+                  const Color.fromARGB(255, 234, 35, 248),
+                  AppColors.electricBlue,
+                  const Color.fromARGB(255, 23, 252, 31),
+                ]
+              : [
+                  const Color.fromARGB(255, 101, 244, 24),
+                  AppColors.electricBlue,
+                  const Color.fromARGB(255, 244, 109, 203),
+                ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color.fromARGB(255, 8, 8, 8).withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(5, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 20),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  _buildSidebarMenuItem(Icons.dashboard, 'Dashboard', true),
+                  _buildSidebarMenuItem(Icons.people, 'Patients', false),
+                  _buildSidebarMenuItem(Icons.calendar_today, 'Appointments', false),
+                  _buildSidebarMenuItem(Icons.notifications, 'Notifications', false),
+                  _buildSidebarMenuItem(Icons.analytics, 'Reports', false),
+                  _buildSidebarMenuItem(Icons.medical_services, 'Medicine', false),
+                  _buildSidebarMenuItem(Icons.settings, 'Settings', false),
+                  _buildSidebarMenuItem(Icons.qr_code, 'Patient QR', false),
+                  _buildSidebarMenuItem(Icons.feedback, 'Feedback', false),
+                  _buildSidebarMenuItem(Icons.timeline, 'History', false),
+                  _buildSidebarMenuItem(Icons.room_service, 'Waiting Room', false),
+                  _buildSidebarMenuItem(Icons.local_hospital, 'OPD Staff', false),
+                  _buildSidebarMenuItem(Icons.group, 'Staff', false),
+                  _buildSidebarMenuItem(Icons.email, 'Email', false),
+                  _buildSidebarMenuItem(Icons.sms, 'SMS', false),
+                  _buildSidebarMenuItem(Icons.message, 'WhatsApp', false),
+                  _buildSidebarMenuItem(Icons.science, 'Lab Reports', false),
+                  _buildSidebarMenuItem(Icons.medical_services, 'Prescription', false),
+                  _buildSidebarMenuItem(Icons.description, 'Templates', false),
+                ],
+              ),
+            ),
+          ),
+          _buildSidebarMenuItem(Icons.logout, 'Logout', false),
+        ],
+      ),
+    );
+
+    if (Responsive.isDesktop(context)) {
+      return MouseRegion(
+        onExit: (_) => _startVisibilityTimer(),
+        child: sidebarContent,
+      );
+    } else {
+      return AnimatedBuilder(
+        animation: _sidebarWidthAnimation,
+        builder: (context, child) {
+          return MouseRegion(
+            onExit: (_) => _startVisibilityTimer(),
+            child: sidebarContent,
+          );
+        },
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      drawer: Responsive.isMobile(context) ? _buildDrawer() : null,
+      appBar: Responsive.isMobile(context) ? _buildMobileAppBar() : null,
+      body: Responsive(
+        mobile: _currentScreen ?? _buildMobileLayout(),
+        tablet: Row(
+          children: [
+            // Invisible hover area to detect mouse enter
+            MouseRegion(
+              onEnter: (_) => setState(() => _isSidebarVisible = true),
+              child: Container(width: 10, color: Colors.transparent),
+            ),
+            _buildSidebar(), // Show sidebar on tablet
+            Expanded(child: _currentScreen ?? _buildDashboardContent()), // Use current screen or dashboard
+          ],
+        ),
+        desktop: Row(
+          children: [
+            // Invisible hover area to detect mouse enter
+            MouseRegion(
+              onEnter: (_) => setState(() => _isSidebarVisible = true),
+              child: Container(width: 10, color: Colors.transparent),
+            ),
+            _buildSidebar(), // Always show sidebar on desktop
+            Expanded(child: _currentScreen ?? _buildDashboardContent()), // Use current screen or dashboard
+          ],
+        ),
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildMobileAppBar() {
+    return AppBar(
+      title: const Text("Dashboard"),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.add, color: Colors.white),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PatientRegistrationForm())),
+        ),
+        IconButton(
+          icon: const Icon(Icons.calendar_today, color: Colors.white),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AppointmentManagement())),
+        ),
+        IconButton(
+          icon: const Icon(Icons.search, color: Colors.white),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PatientSearch())),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDashboardContent() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final layoutWidth = constraints.maxWidth;
+        final layoutHeight = constraints.maxHeight;
+
+        // Adjust padding based on sidebar visibility
+        final horizontalPadding = _isSidebarVisible ? layoutWidth * 0.04 : 0.0;
+
+        return FadeTransition(
+          opacity: _fadeAnimation,
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color.fromARGB(255, 201, 204, 235),
+                  Color(0xFF3949AB),
+                  Color(0xFF3F51B5),
+                  Color(0xFF2196F3),
+                  Color(0xFF00BCD4),
+                  Color(0xFF4CAF50),
+                ],
+              ),
+            ),
+            child: Stack(
+              children: [
+                CustomPaint(
+                  painter: FloatingParticlesPainter(),
+                  child: Container(),
+                ),
+                // Main Content - Full Width
+                Column(
+                  children: [
+                    _buildDesktopHeader(layoutWidth, layoutHeight, _isSidebarVisible),
+                    _buildStatisticsCards(layoutWidth, _isSidebarVisible),
+                    _buildTabsBar(layoutWidth, _isSidebarVisible),
+                    Expanded(
+                      child: Container(
+                        constraints: BoxConstraints(
+                          minHeight: 200,
+                          maxHeight: layoutHeight * 0.7,
+                        ),
+                        padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: layoutHeight * 0.02),
+                        child: TabBarView(
+                          controller: _tabController,
+                          children: [
+                            _buildGlassPatientList('Waiting'),
+                            _buildGlassPatientList('In Progress'),
+                            _buildGlassPatientList('Completed'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                _buildFloatingActionButton(layoutWidth, layoutHeight),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDesktopLayout(bool isSidebarVisible) {
+    return _buildDashboardContent();
+  }
+
+  Widget _buildDesktopHeader(double layoutWidth, double layoutHeight, bool isSidebarVisible) {
+    return Container(
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).size.height * 0.06,
+        left: isSidebarVisible ? MediaQuery.of(context).size.width * 0.04 : 0.0,
+        right: MediaQuery.of(context).size.width * 0.04,
+        bottom: MediaQuery.of(context).size.height * 0.03,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.cardWhite,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              // ignore: deprecated_member_use
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.03),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color.fromARGB(255, 19, 183, 228),
+                    borderRadius: BorderRadius.circular(50),
+                    boxShadow: [
+                      BoxShadow(
+                        // ignore: deprecated_member_use
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 5,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.all(4),
+                  child: CircleAvatar(
+                    backgroundColor: AppColors.primaryBlue,
+                    radius: MediaQuery.of(context).size.width * 0.025,
+                    child: Icon(Icons.local_hospital, size: MediaQuery.of(context).size.width * 0.025, color: Colors.white),
+                  ),
+                ),
+                SizedBox(width: MediaQuery.of(context).size.width * 0.015),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Dr. John Doe',
+                        style: TextStyle(
+                          color: AppColors.darkNavy,
+                          fontSize: MediaQuery.of(context).size.width * 0.02,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        'Cardiologist – 15 Years Experience',
+                        style: TextStyle(
+                          color: AppColors.neutralGray,
+                          fontSize: MediaQuery.of(context).size.width * 0.015,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        _isSidebarVisible ? Icons.menu_open : Icons.menu,
+                        color: AppColors.primaryBlue,
+                        size: 24,
+                      ),
+                      onPressed: () {
+                        setState(() => _isSidebarVisible = !_isSidebarVisible);
+                        if (_isSidebarVisible) {
+                          _visibilityTimer?.cancel();
+                          _visibilityTimer = Timer(const Duration(seconds: 10), () {
+                            if (mounted) {
+                              setState(() => _isSidebarVisible = false);
+                            }
+                          });
+                        }
+                      },
+                      tooltip: _isSidebarVisible ? 'Hide Sidebar' : 'Show Sidebar',
+                    ),
+                    SizedBox(width: MediaQuery.of(context).size.width * 0.02),
+                    _buildIconButton(Icons.calendar_today, 'Schedule'),
+                    SizedBox(width: MediaQuery.of(context).size.width * 0.02),
+                    _buildIconButton(Icons.search, 'Search'),
+                    SizedBox(width: MediaQuery.of(context).size.width * 0.02),
+                    _buildIconButton(Icons.notifications, 'Alerts'),
+                    SizedBox(width: MediaQuery.of(context).size.width * 0.02),
+                    _buildIconButton(Icons.analytics, 'Reports'),
+                    SizedBox(width: MediaQuery.of(context).size.width * 0.02),
+                    _buildIconButton(Icons.medical_services, 'Medicine'),
+                    SizedBox(width: MediaQuery.of(context).size.width * 0.02),
+                    _buildIconButton(Icons.settings, 'Settings'),
+                  ],
+                ),
+              ],
+            ),
+            SizedBox(height: MediaQuery.of(context).size.height * 0.03),
+            _buildSearchBar(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cardWhite,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            // ignore: deprecated_member_use
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: MediaQuery.of(context).size.width * 0.025,
+        vertical: MediaQuery.of(context).size.height * 0.02,
+      ),
+      child: Row(
+        children: const [
+          Icon(Icons.search, color: Color.fromARGB(255, 47, 47, 48)),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Search patients by name, token, or mobile...', // This can be a TextField
+              style: TextStyle(color: Color.fromARGB(255, 54, 56, 59)),
+            ),
+          ),
+          Icon(Icons.filter_list, color: AppColors.neutralGray),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatisticsCards(double layoutWidth, bool isSidebarVisible) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: isSidebarVisible ? layoutWidth * 0.04 : 0.0),
+      margin: const EdgeInsets.only(bottom: 20),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            SizedBox(width: 200, child: _buildGlassStatCard('Total Patients', '150', const Color.fromARGB(255, 187, 11, 155), Icons.people_alt_rounded)),
+            const SizedBox(width: 24),
+            SizedBox(width: 200, child: _buildGlassStatCard('Today\'s OPD', '25', AppColors.warningOrange, Icons.calendar_view_day)),
+            const SizedBox(width: 24),
+            SizedBox(width: 200, child: _buildGlassStatCard('In Progress', '3', AppColors.infoCyan, Icons.healing)),
+            const SizedBox(width: 24),
+            SizedBox(width: 200, child: _buildGlassStatCard('Completed', '22', AppColors.successGreen, Icons.check_circle)),
+            const SizedBox(width: 24),
+            SizedBox(width: 200, child: _buildGlassStatCard('Pending', '5', AppColors.dangerRed, Icons.schedule)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabsBar(double layoutWidth, bool isSidebarVisible) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: isSidebarVisible ? layoutWidth * 0.04 : 0.0),
+      child: GlassContainer(
+        blur: 15,
+        opacity: 0.1,
+        radius: 15,
+        child: Container(
+          padding: EdgeInsets.all(layoutWidth * 0.01),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: const Color.fromARGB(255, 241, 7, 7).withOpacity(0.2)),
+          ),
+          child: TabBar(
+            controller: _tabController,
+            tabs: [
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.hourglass_empty, size: layoutWidth * 0.025, color: Colors.white),
+                    SizedBox(width: layoutWidth * 0.01),
+                    Text('Waiting', style: TextStyle(color: Colors.white, fontSize: layoutWidth * 0.02)),
+                  ],
+                ),
+              ),
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.healing, size: layoutWidth * 0.025, color: const Color.fromARGB(255, 219, 44, 44)),
+                    SizedBox(width: layoutWidth * 0.01),
+                    Text('In Progress', style: TextStyle(color: const Color.fromARGB(255, 14, 201, 191), fontSize: layoutWidth * 0.02)),
+                  ],
+                ),
+              ),
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.check_circle, size: layoutWidth * 0.025, color: const Color.fromARGB(255, 25, 136, 161)),
+                    SizedBox(width: layoutWidth * 0.01),
+                    Text('Completed', style: TextStyle(color: const Color.fromARGB(255, 188, 16, 148), fontSize: layoutWidth * 0.02)),
+                  ],
+                ),
+              ),
+            ],
+            indicator: BoxDecoration(
+              gradient: const LinearGradient(colors: [AppColors.vibrantCyan, AppColors.electricBlue]),
+              borderRadius: BorderRadius.circular(10),
+              // ignore: deprecated_member_use
+              boxShadow: [BoxShadow(color: AppColors.vibrantCyan.withOpacity(0.5), blurRadius: 10, spreadRadius: 2)],
+            ),
+            labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFloatingActionButton(double layoutWidth, double layoutHeight) {
+    return Positioned(
+      bottom: layoutHeight * 0.04,
+      right: layoutWidth * 0.04,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Sidebar menu button - Always accessible
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [AppColors.electricBlue, AppColors.vibrantCyan]),
+              shape: BoxShape.circle,
+              // ignore: deprecated_member_use
+              boxShadow: [BoxShadow(color: AppColors.electricBlue.withOpacity(0.5), blurRadius: 20, spreadRadius: 5)],
+            ),
+            child: FloatingActionButton(
+              onPressed: () => _showGlobalSidebarMenu(context),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              child: Icon(Icons.menu, color: const Color.fromARGB(255, 249, 75, 75), size: layoutWidth * 0.03),
+              tooltip: 'Menu',
+            ),
+          ),
+          // Add patient button
+          Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Colors.pink, Colors.red]),
+              shape: BoxShape.circle,
+              // ignore: deprecated_member_use
+              boxShadow: [BoxShadow(color: Colors.pink.withOpacity(0.5), blurRadius: 20, spreadRadius: 5)],
+            ),
+            child: FloatingActionButton(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PatientRegistrationForm())),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              child: Icon(Icons.add, color: Colors.white, size: layoutWidth * 0.04),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSidebarMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color.fromARGB(255, 234, 35, 248),
+              AppColors.electricBlue,
+              const Color.fromARGB(255, 23, 252, 31),
+            ],
+          ),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.all(16),
+              height: 4,
+              width: 40,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            _buildMenuItem(Icons.dashboard, 'Dashboard', true),
+            _buildMenuItem(Icons.people, 'Patients', false),
+            _buildMenuItem(Icons.calendar_today, 'Appointments', false),
+            _buildMenuItem(Icons.notifications, 'Notifications', false),
+            _buildMenuItem(Icons.analytics, 'Reports', false),
+            _buildMenuItem(Icons.medical_services, 'Medicine', false),
+            _buildMenuItem(Icons.settings, 'Settings', false),
+            _buildMenuItem(Icons.qr_code, 'Patient QR', false),
+            _buildMenuItem(Icons.feedback, 'Feedback', false),
+            _buildMenuItem(Icons.timeline, 'History', false),
+            _buildMenuItem(Icons.room_service, 'Waiting Room', false),
+            _buildMenuItem(Icons.local_hospital, 'OPD Staff', false),
+            _buildMenuItem(Icons.group, 'Staff', false),
+            _buildMenuItem(Icons.email, 'Email', false),
+            _buildMenuItem(Icons.sms, 'SMS', false),
+            _buildMenuItem(Icons.message, 'WhatsApp', false),
+            _buildMenuItem(Icons.science, 'Lab Reports', false),
+            _buildMenuItem(Icons.medical_services, 'Prescription', false),
+            _buildMenuItem(Icons.description, 'Templates', false),
+            _buildMenuItem(Icons.logout, 'Logout', false),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showGlobalSidebarMenu(BuildContext context) {
+    _showSidebarMenu(context);
+  }
+
+  Widget _buildMenuItem(IconData icon, String label, bool isActive) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 24.0),
+      title: Row(
+        children: [
+          Icon(icon, color: Colors.white, size: 24),
+          const SizedBox(width: 16),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+      onTap: () {
+        Navigator.pop(context); // Close the bottom sheet
+        _navigateToScreen(label);
+      },
+    );
+  }
+
+  Widget _buildMobileLayout() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color.fromARGB(255, 245, 42, 228),
+            Color(0xFF3949AB),
+            Color(0xFF3F51B5),
+            Color(0xFF2196F3),
+            Color(0xFF00BCD4),
+            Color(0xFF4CAF50),
+          ],
+        ),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: _buildMobileHeader(),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  SizedBox(
+                    height: 150,
+                    child: ListView(
+                      scrollDirection: Axis.vertical,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      children: [
+                        _buildGlassStatCard('Total Patients', '150', Colors.blue, Icons.people_alt_rounded),
+                        const SizedBox(height: 16),
+                        _buildGlassStatCard('Today\'s OPD', '25', Colors.orange, Icons.calendar_view_day),
+                        const SizedBox(height: 16),
+                        _buildGlassStatCard('In Progress', '3', Colors.cyan, Icons.healing),
+                        const SizedBox(height: 16),
+                        _buildGlassStatCard('Completed', '22', Colors.green, Icons.check_circle),
+                        const SizedBox(height: 16),
+                        _buildGlassStatCard('Pending', '5', Colors.red, Icons.schedule),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.cardWhite,
+                        borderRadius: BorderRadius.circular(15), 
+                        boxShadow: [
+                          BoxShadow( 
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: TabBar(
+                        controller: _tabController,
+                        tabs: const [
+                          Tab(icon: Icon(Icons.hourglass_empty, size: 20, color: Color(0xFF0A2463)), text: 'Waiting'),
+                          Tab(icon: Icon(Icons.healing, size: 20, color: Color(0xFF0A2463)), text: 'In Progress'),
+                          Tab(icon: Icon(Icons.check_circle, size: 20, color: Color(0xFF0A2463)), text: 'Completed'),
+                        ],
+                        indicator: BoxDecoration(
+                          gradient: const LinearGradient(colors: [Color(0xFF00D9FF), Color(0xFF3E92CC)]),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        labelStyle: const TextStyle(fontSize: 12, color: Color(0xFF0A2463)),
+                        unselectedLabelStyle: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.5, // Adjusted height for better fit
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildMobilePatientList('Waiting'),
+                        _buildMobilePatientList('In Progress'),
+                        _buildMobilePatientList('Completed'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileHeader() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cardWhite,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            // ignore: deprecated_member_use
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16.0),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 25, 
+            backgroundColor: AppColors.primaryBlue,
+            child: const Icon(Icons.local_hospital, size: 25, color: Colors.white),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column( 
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Dr. John Doe', style: TextStyle(color: AppColors.darkNavy, fontSize: 18, fontWeight: FontWeight.bold)),
+                Text('Cardiologist', style: TextStyle(color: AppColors.neutralGray, fontSize: 14)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawer() {
+    return Drawer(
+      child: Container(
+        color: const Color(0xFF1A237E),
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            const DrawerHeader(child: Text('Menu', style: TextStyle(color: Colors.white, fontSize: 24))),
+            _buildDrawerIcon(Icons.dashboard, 'Dashboard', true),
+            _buildDrawerIcon(Icons.people, 'Patients', false),
+            _buildDrawerIcon(Icons.calendar_today, 'Appointments', false),
+            _buildDrawerIcon(Icons.notifications, 'Notifications', false),
+            _buildDrawerIcon(Icons.analytics, 'Reports', false),
+            _buildDrawerIcon(Icons.medical_services, 'Medicine', false),
+            _buildDrawerIcon(Icons.settings, 'Settings', false),
+            _buildDrawerIcon(Icons.qr_code, 'Patient QR', false),
+            _buildDrawerIcon(Icons.feedback, 'Feedback', false),
+            _buildDrawerIcon(Icons.timeline, 'History', false),
+            _buildDrawerIcon(Icons.room_service, 'Waiting Room', false),
+            _buildDrawerIcon(Icons.local_hospital, 'OPD Staff', false),
+            _buildDrawerIcon(Icons.group, 'Staff', false),
+            _buildDrawerIcon(Icons.email, 'Email', false),
+            _buildDrawerIcon(Icons.sms, 'SMS', false),
+            _buildDrawerIcon(Icons.message, 'WhatsApp', false),
+            _buildDrawerIcon(Icons.science, 'Lab Reports', false),
+            _buildDrawerIcon(Icons.medical_services, 'Prescription', false),
+            _buildDrawerIcon(Icons.description, 'Templates', false),
+            const Divider(color: Colors.white24),
+            ListTile(
+              title: const Text('Logout', style: TextStyle(color: Colors.red)),
+              onTap: () => _logout(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerIcon(IconData icon, String label, bool isActive) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      title: Row(
+        children: [
+          Icon(icon, color: Colors.white, size: 20),
+          const SizedBox(width: 16),
+          Text(
+            label,
+            // ignore: deprecated_member_use
+            style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14),
+          ),
+        ],
+      ),
+      onTap: () {
+        // Navigate to different screens based on label
+        switch (label) {
+          case 'Dashboard':
+            Navigator.pop(context); // Close drawer
+            break;
+          case 'Patients':
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const PatientSearch()));
+            break;
+          case 'Appointments':
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const AppointmentManagement()));
+            break;
+          case 'Notifications':
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsCenter()));
+            break;
+          case 'Reports':
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const ReportsAnalytics()));
+            break;
+          case 'Medicine':
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const MedicineDatabase()));
+            break;
+          case 'Settings':
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsConfiguration()));
+            break;
+          case 'Book Appointment':
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const BookAppointment()));
+            break;
+          case 'Consultation':
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const ConsultationScreen()));
+            break;
+          case 'Schedule':
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const DoctorScheduleCalendar()));
+            break;
+          case 'Patient QR':
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const PatientQrCode()));
+            break;
+          case 'Feedback':
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const PatientFeedbackSystem()));
+            break;
+          case 'History':
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const PatientHistoryTimeline()));
+            break;
+          case 'Waiting Room':
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const WaitingRoomDisplay()));
+            break;
+          case 'OPD Staff':
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const OPDStaffDashboard()));
+            break;
+          case 'Staff':
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const StaffDashboard()));
+            break;
+          case 'Email':
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const EmailFeatures())); // Assuming EmailFeatures exists
+            break;
+          case 'SMS':
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const SmsIntegration()));
+            break;
+case 'WhatsApp':
+  Navigator.push(context, MaterialPageRoute(builder: (context) => WhatsAppIntegration()));
+  break;
+          case 'Lab Reports':
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const LabReportsManagement()));
+            break;
+          case 'Prescription':
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const PrescriptionPage()));
+            break;
+          case 'Templates':
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const PrescriptionTemplates()));
+            break;
+        }
+      },
+    );
+  }
+
+  Widget _buildIconButton(IconData icon, String tooltip) {
+    return HoverableWidget(
+      onHover: (isHovering) {},
+      builder: (context, isHovering) => AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        // ignore: deprecated_member_use
+        transform: Matrix4.identity()..scale(isHovering ? 1.05 : 1.0), 
+        transformAlignment: Alignment.center,
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.cardWhite,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 5,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          child: IconButton(
+            icon: Icon(icon, color: AppColors.primaryBlue, size: 24),
+            onPressed: () {
+              switch (tooltip) {
+                case 'Schedule':
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const AppointmentManagement()));
+                  break;
+                case 'Search':
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const PatientSearch()));
+                  break;
+                case 'Alerts':
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsCenter()));
+                  break;
+                case 'Reports':
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const ReportsAnalytics()));
+                  break;
+                case 'Medicine':
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const MedicineDatabase()));
+                  break;
+                case 'Settings':
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsConfiguration()));
+                  break;
+              }
+            },
+            tooltip: tooltip,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, Color color, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardWhite,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            // ignore: deprecated_member_use
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 32, color: color),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.neutralGray,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGlassStatCard(String title, String value, Color color, IconData icon) {
+    return GlassContainer(
+      blur: 10,
+      opacity: 0.1,
+      radius: 12,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          // ignore: deprecated_member_use
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 32, color: Colors.white),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                // ignore: deprecated_member_use
+                color: Colors.white.withOpacity(0.8),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlassPatientList(String status) {
+    List<Patient> filteredPatients = patients.where((p) => p.status.toString().split('.').last.toLowerCase() == status.replaceAll(' ', '').toLowerCase()).toList();
+
+    Color getStatusColor(String status) {
+      switch (status.toLowerCase()) {
+        case 'waiting':
+          return AppColors.warningOrange.withOpacity(0.2);
+        case 'inprogress':
+          return AppColors.infoCyan.withOpacity(0.2);
+        case 'completed':
+          return AppColors.successGreen.withOpacity(0.2);
+        default:
+          return AppColors.cardWhite;
+      }
+    }
+
+    return ListView.builder(
+      itemCount: filteredPatients.length,
+      itemBuilder: (context, index) {
+        final patient = filteredPatients[index];
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          decoration: BoxDecoration(
+            color: getStatusColor(status),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              // ignore: deprecated_member_use
+              BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 5, offset: const Offset(0, 2)),
+            ],
+          ),
+          child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: AppColors.primaryBlue,
+                child: Text(patient.name[0], style: const TextStyle(color: Colors.white)),
+              ),
+              title: Text(patient.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text('Token: ${patient.token} • Age: ${patient.age} • ${patient.gender}'),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.call, color: Colors.green),
+                    onPressed: () {},
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.message, color: Colors.blue),
+                    onPressed: () {},
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.edit, color: Colors.orange),
+                    onPressed: () {},
+                  ),
+                  if (status == 'Waiting')
+                    ElevatedButton(
+                      onPressed: () => _updatePatientStatus(patient.id, PatientStatus.inProgress),
+                      child: const Text('Start'),
+                    ),
+                  if (status == 'In Progress')
+                    ElevatedButton(
+                      onPressed: () => _updatePatientStatus(patient.id, PatientStatus.completed),
+                      child: const Text('Complete'),
+                    ),
+                ],
+              ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMobilePatientList(String status) {
+    List<Patient> filteredPatients = patients.where((p) => p.status.toString().split('.').last.toLowerCase() == status.replaceAll(' ', '').toLowerCase()).toList();
+
+    Color getStatusColor(String status) {
+      switch (status.toLowerCase()) {
+        case 'waiting':
+          return AppColors.warningOrange.withOpacity(0.2);
+        case 'inprogress':
+          return AppColors.infoCyan.withOpacity(0.2);
+        case 'completed':
+          return AppColors.successGreen.withOpacity(0.2);
+        default:
+          return AppColors.cardWhite;
+      }
+    }
+
+    return ListView.builder(
+      itemCount: filteredPatients.length,
+      itemBuilder: (context, index) {
+        final patient = filteredPatients[index];
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          decoration: BoxDecoration(
+            color: getStatusColor(status),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              // ignore: deprecated_member_use
+              BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 5,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: AppColors.primaryBlue,
+                child: Text(patient.name[0], style: const TextStyle(color: Colors.white)),
+              ),
+              title: Text(patient.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text('Token: ${patient.token} • Age: ${patient.age} • ${patient.gender}'),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.call, color: Colors.green),
+                    onPressed: () {},
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.message, color: Colors.blue),
+                    onPressed: () {},
+                  ),
+                  if (status == 'Waiting')
+                    ElevatedButton(

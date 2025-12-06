@@ -9,6 +9,7 @@ import 'patient_registration_form.dart';
 import 'patient_search.dart';
 import 'book_appointment.dart';
 import 'payment_management.dart';
+import 'payment_installment_screen.dart';
 import 'sms_integration.dart';
 import 'whatsapp_integration.dart';
 import 'appointment_verification_list.dart';
@@ -45,6 +46,7 @@ class _OPDStaffDashboardState extends State<OPDStaffDashboard> {
     StaffMenuItem(icon: Icons.check_circle_rounded, label: 'Completed Patients', route: 'CompletedPatientsList'),
     StaffMenuItem(icon: Icons.search_rounded, label: 'Search Patient', route: 'PatientSearch'),
     StaffMenuItem(icon: Icons.payment_rounded, label: 'Collect Payment', route: 'PaymentManagement'),
+    StaffMenuItem(icon: Icons.receipt_long_rounded, label: 'Installment Payments', route: 'PaymentInstallment'),
     StaffMenuItem(icon: Icons.sms_rounded, label: 'SMS Reminders', route: 'SmsIntegration'),
     StaffMenuItem(icon: Icons.chat_rounded, label: 'WhatsApp', route: 'WhatsAppIntegration'),
   ];
@@ -121,6 +123,9 @@ class _OPDStaffDashboardState extends State<OPDStaffDashboard> {
         break;
       case 'PaymentManagement':
         page = const PaymentManagement(isStaff: true);
+        break;
+      case 'PaymentInstallment':
+        page = const PaymentInstallmentScreen(isStaff: true, userName: 'Staff');
         break;
       case 'SmsIntegration':
         page = const SmsIntegration();

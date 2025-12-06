@@ -606,3 +606,142 @@ class Payment {
     );
   }
 }
+
+// Payment Installment - For tracking bills with partial payments
+class PaymentInstallment {
+  final String id;
+  final String patientId;
+  final String patientName;
+  final String? appointmentId;
+  final double totalAmount;
+  final double instrumentCharges;
+  final double serviceCharges;
+  final DateTime createdAt;
+  final String status; // 'PENDING', 'PARTIAL', 'FULL_PAID'
+  final double paidAmount;
+  final double remainingAmount;
+
+  PaymentInstallment({
+    required this.id,
+    required this.patientId,
+    required this.patientName,
+    this.appointmentId,
+    required this.totalAmount,
+    this.instrumentCharges = 0.0,
+    this.serviceCharges = 0.0,
+    DateTime? createdAt,
+    this.status = 'PENDING',
+    this.paidAmount = 0.0,
+    double? remainingAmount,
+  }) : createdAt = createdAt ?? DateTime.now(),
+       remainingAmount = remainingAmount ?? totalAmount;
+
+  PaymentInstallment copyWith({
+    String? id,
+    String? patientId,
+    String? patientName,
+    String? appointmentId,
+    double? totalAmount,
+    double? instrumentCharges,
+    double? serviceCharges,
+    DateTime? createdAt,
+    String? status,
+    double? paidAmount,
+    double? remainingAmount,
+  }) {
+    return PaymentInstallment(
+      id: id ?? this.id,
+      patientId: patientId ?? this.patientId,
+      patientName: patientName ?? this.patientName,
+      appointmentId: appointmentId ?? this.appointmentId,
+      totalAmount: totalAmount ?? this.totalAmount,
+      instrumentCharges: instrumentCharges ?? this.instrumentCharges,
+      serviceCharges: serviceCharges ?? this.serviceCharges,
+      createdAt: createdAt ?? this.createdAt,
+      status: status ?? this.status,
+      paidAmount: paidAmount ?? this.paidAmount,
+      remainingAmount: remainingAmount ?? this.remainingAmount,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'patient_id': patientId,
+      'patient_name': patientName,
+      'appointment_id': appointmentId,
+      'total_amount': totalAmount,
+      'instrument_charges': instrumentCharges,
+      'service_charges': serviceCharges,
+      'created_at': createdAt.toIso8601String(),
+      'status': status,
+      'paid_amount': paidAmount,
+      'remaining_amount': remainingAmount,
+    };
+  }
+
+  factory PaymentInstallment.fromMap(Map<String, dynamic> map) {
+    return PaymentInstallment(
+      id: map['id'],
+      patientId: map['patient_id'],
+      patientName: map['patient_name'] ?? '',
+      appointmentId: map['appointment_id'],
+      totalAmount: (map['total_amount'] ?? 0).toDouble(),
+      instrumentCharges: (map['instrument_charges'] ?? 0).toDouble(),
+      serviceCharges: (map['service_charges'] ?? 0).toDouble(),
+      createdAt: DateTime.parse(map['created_at']),
+      status: map['status'] ?? 'PENDING',
+      paidAmount: (map['paid_amount'] ?? 0).toDouble(),
+      remainingAmount: (map['remaining_amount'] ?? map['total_amount'] ?? 0).toDouble(),
+    );
+  }
+}
+
+// Payment Transaction - Individual payment record for an installment
+class PaymentTransaction {
+  final String id;
+  final String paymentId; // References PaymentInstallment
+  final double amountPaid;
+  final DateTime paymentDate;
+  final String paymentMode; // 'Cash', 'UPI', 'Card', 'Cheque'
+  final String receivedBy; // Staff/Doctor name
+  final String receiptNumber;
+  final String? notes;
+
+  PaymentTransaction({
+    required this.id,
+    required this.paymentId,
+    required this.amountPaid,
+    DateTime? paymentDate,
+    required this.paymentMode,
+    required this.receivedBy,
+    required this.receiptNumber,
+    this.notes,
+  }) : paymentDate = paymentDate ?? DateTime.now();
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'payment_id': paymentId,
+      'amount_paid': amountPaid,
+      'payment_date': paymentDate.toIso8601String(),
+      'payment_mode': paymentMode,
+      'received_by': receivedBy,
+      'receipt_number': receiptNumber,
+      'notes': notes,
+    };
+  }
+
+  factory PaymentTransaction.fromMap(Map<String, dynamic> map) {
+    return PaymentTransaction(
+      id: map['id'],
+      paymentId: map['payment_id'],
+      amountPaid: (map['amount_paid'] ?? 0).toDouble(),
+      paymentDate: DateTime.parse(map['payment_date']),
+      paymentMode: map['payment_mode'] ?? 'Cash',
+      receivedBy: map['received_by'] ?? '',
+      receiptNumber: map['receipt_number'] ?? '',
+      notes: map['notes'],
+    );
+  }
+}

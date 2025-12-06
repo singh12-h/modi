@@ -618,4 +618,338 @@ class PdfService {
       ],
     );
   }
+
+  // Generate Installment Payment Receipt PDF
+  static Future<void> generateInstallmentReceipt({
+    required PaymentTransaction transaction,
+    required PaymentInstallment installment,
+    String clinicName = 'MODI CLINIC',
+    String? clinicAddress,
+    String? clinicPhone,
+  }) async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context context) {
+          return pw.Container(
+            padding: const pw.EdgeInsets.all(40),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Header
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(20),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.purple100,
+                    borderRadius: pw.BorderRadius.circular(10),
+                  ),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            clinicName,
+                            style: pw.TextStyle(
+                              fontSize: 24,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.purple900,
+                            ),
+                          ),
+                          pw.SizedBox(height: 5),
+                          pw.Text(
+                            'PAYMENT RECEIPT',
+                            style: pw.TextStyle(
+                              fontSize: 14,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.purple700,
+                            ),
+                          ),
+                          if (clinicAddress != null)
+                            pw.Text(
+                              clinicAddress,
+                              style: const pw.TextStyle(
+                                fontSize: 10,
+                                color: PdfColors.grey700,
+                              ),
+                            ),
+                        ],
+                      ),
+                      pw.Container(
+                        padding: const pw.EdgeInsets.all(12),
+                        decoration: pw.BoxDecoration(
+                          color: installment.status == 'FULL_PAID'
+                              ? PdfColors.green
+                              : installment.status == 'PARTIAL'
+                                  ? PdfColors.orange
+                                  : PdfColors.red,
+                          borderRadius: pw.BorderRadius.circular(8),
+                        ),
+                        child: pw.Text(
+                          installment.status.replaceAll('_', ' '),
+                          style: pw.TextStyle(
+                            color: PdfColors.white,
+                            fontWeight: pw.FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 30),
+
+                // Receipt Info
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(16),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.grey100,
+                    borderRadius: pw.BorderRadius.circular(8),
+                  ),
+                  child: pw.Column(
+                    children: [
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildDetailRow('Receipt No:', transaction.receiptNumber),
+                          _buildDetailRow(
+                            'Date:',
+                            DateFormat('dd MMM yyyy, hh:mm a')
+                                .format(transaction.paymentDate),
+                          ),
+                        ],
+                      ),
+                      pw.SizedBox(height: 12),
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildDetailRow('Patient Name:', installment.patientName),
+                          _buildDetailRow('Received By:', transaction.receivedBy),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 25),
+
+                // Payment Details
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(16),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.purple200, width: 2),
+                    borderRadius: pw.BorderRadius.circular(10),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'Payment Details',
+                        style: pw.TextStyle(
+                          fontSize: 14,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                      pw.Divider(color: PdfColors.grey300),
+                      pw.SizedBox(height: 10),
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text('Payment Mode:'),
+                          pw.Text(
+                            transaction.paymentMode,
+                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      pw.SizedBox(height: 12),
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text(
+                            'Amount Paid:',
+                            style: pw.TextStyle(
+                              fontSize: 16,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                          pw.Text(
+                            '₹${transaction.amountPaid.toStringAsFixed(2)}',
+                            style: pw.TextStyle(
+                              fontSize: 20,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.green700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (transaction.notes != null && transaction.notes!.isNotEmpty) ...[
+                        pw.SizedBox(height: 12),
+                        pw.Text('Notes:', style: const pw.TextStyle(fontSize: 10)),
+                        pw.Text(
+                          transaction.notes!,
+                          style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 25),
+
+                // Bill Summary
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(16),
+                  decoration: pw.BoxDecoration(
+                    color: installment.status == 'FULL_PAID'
+                        ? PdfColors.green50
+                        : PdfColors.orange50,
+                    border: pw.Border.all(
+                      color: installment.status == 'FULL_PAID'
+                          ? PdfColors.green
+                          : PdfColors.orange,
+                      width: 2,
+                    ),
+                    borderRadius: pw.BorderRadius.circular(10),
+                  ),
+                  child: pw.Column(
+                    children: [
+                      pw.Text(
+                        'Bill Summary',
+                        style: pw.TextStyle(
+                          fontSize: 14,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                      pw.SizedBox(height: 12),
+                      _buildSummaryRow('Instrument Charges:', installment.instrumentCharges),
+                      pw.SizedBox(height: 6),
+                      _buildSummaryRow('Service Charges:', installment.serviceCharges),
+                      pw.Divider(color: PdfColors.grey400),
+                      _buildSummaryRow('Total Bill Amount:', installment.totalAmount, isBold: true),
+                      pw.SizedBox(height: 6),
+                      _buildSummaryRow('Total Paid:', installment.paidAmount, color: PdfColors.green700),
+                      pw.SizedBox(height: 6),
+                      pw.Divider(color: PdfColors.grey400),
+                      pw.SizedBox(height: 6),
+                      if (installment.status == 'FULL_PAID')
+                        pw.Container(
+                          padding: const pw.EdgeInsets.all(10),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.green,
+                            borderRadius: pw.BorderRadius.circular(8),
+                          ),
+                          child: pw.Row(
+                            mainAxisAlignment: pw.MainAxisAlignment.center,
+                            children: [
+                              pw.Text(
+                                '✓ FULLY PAID - Thank You!',
+                                style: pw.TextStyle(
+                                  color: PdfColors.white,
+                                  fontWeight: pw.FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        _buildSummaryRow(
+                          'Remaining Balance:',
+                          installment.remainingAmount,
+                          color: PdfColors.red,
+                          isBold: true,
+                          fontSize: 14,
+                        ),
+                    ],
+                  ),
+                ),
+
+                pw.Spacer(),
+
+                // Footer
+                pw.Divider(color: PdfColors.grey300),
+                pw.SizedBox(height: 10),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'Authorized Signature',
+                          style: const pw.TextStyle(fontSize: 10),
+                        ),
+                        pw.SizedBox(height: 25),
+                        pw.Container(
+                          width: 120,
+                          height: 1,
+                          color: PdfColors.black,
+                        ),
+                      ],
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Text(
+                          'This is a computer-generated receipt',
+                          style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          'Thank you for your payment!',
+                          style: pw.TextStyle(
+                            fontSize: 10,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.purple700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: 'Receipt_${transaction.receiptNumber}.pdf',
+    );
+  }
+
+  static pw.Widget _buildSummaryRow(
+    String label,
+    double amount, {
+    PdfColor? color,
+    bool isBold = false,
+    double fontSize = 12,
+  }) {
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text(
+          label,
+          style: pw.TextStyle(
+            fontSize: fontSize,
+            fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+            color: color,
+          ),
+        ),
+        pw.Text(
+          '₹${amount.toStringAsFixed(2)}',
+          style: pw.TextStyle(
+            fontSize: fontSize,
+            fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
 }
+

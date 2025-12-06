@@ -25,6 +25,7 @@ import 'package:modi/patient_qr_code.dart';
 import 'package:modi/waiting_room_display.dart';
 
 import 'package:modi/payment_management.dart';
+import 'package:modi/payment_installment_screen.dart';
 import 'package:modi/staff_management.dart';
 import 'package:modi/settings_configuration.dart';
 import 'package:modi/lab_reports_management.dart';
@@ -95,6 +96,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
     MenuItem(icon: Icons.qr_code_rounded, label: 'Patient QR Code', route: 'PatientQrCode'),
     MenuItem(icon: Icons.event_repeat_rounded, label: 'Follow-up Appointments', route: 'FollowUpAppointments'),
     MenuItem(icon: Icons.payment_rounded, label: 'Payment Management', route: 'PaymentManagement'),
+    MenuItem(icon: Icons.receipt_long_rounded, label: 'Installment Payments', route: 'PaymentInstallment'),
     MenuItem(icon: Icons.medication_rounded, label: 'Medicine Database', route: 'MedicineDatabase'),
     MenuItem(icon: Icons.science_rounded, label: 'Lab Reports', route: 'LabReportsManagement'),
     MenuItem(icon: Icons.schedule_rounded, label: 'Doctor Schedule', route: 'DoctorScheduleCalendar'),
@@ -435,6 +437,9 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
         break;
       case 'PaymentManagement':
         page = const PaymentManagement();
+        break;
+      case 'PaymentInstallment':
+        page = const PaymentInstallmentScreen(isStaff: false, userName: 'Doctor');
         break;
       case 'SettingsConfiguration':
         page = const SettingsConfiguration();

@@ -119,7 +119,7 @@ class DatabaseHelper {
     print('Opening database at $path'); // Debug
     return await openDatabase(
       path,
-      version: 9,
+      version: 10,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
       onOpen: (db) async {
@@ -255,6 +255,39 @@ class DatabaseHelper {
         )
       ''');
     }
+    if (oldVersion < 10) {
+      // Payment Installments Table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS payment_installments (
+          id TEXT PRIMARY KEY,
+          patient_id TEXT NOT NULL,
+          patient_name TEXT NOT NULL,
+          appointment_id TEXT,
+          total_amount REAL NOT NULL,
+          instrument_charges REAL DEFAULT 0,
+          service_charges REAL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'PENDING',
+          paid_amount REAL DEFAULT 0,
+          remaining_amount REAL NOT NULL,
+          FOREIGN KEY (patient_id) REFERENCES patients (id)
+        )
+      ''');
+      // Payment Transactions Table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS payment_transactions (
+          id TEXT PRIMARY KEY,
+          payment_id TEXT NOT NULL,
+          amount_paid REAL NOT NULL,
+          payment_date TEXT NOT NULL,
+          payment_mode TEXT NOT NULL,
+          received_by TEXT NOT NULL,
+          receipt_number TEXT NOT NULL,
+          notes TEXT,
+          FOREIGN KEY (payment_id) REFERENCES payment_installments (id)
+        )
+      ''');
+    }
   }
 
   Future _createDB(Database db, int version) async {
@@ -375,6 +408,37 @@ class DatabaseHelper {
         salt TEXT NOT NULL,
         role TEXT NOT NULL,
         created_at TEXT NOT NULL
+      )
+    ''');
+    // Payment Installments Table - For tracking bills with partial payments
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS payment_installments (
+        id TEXT PRIMARY KEY,
+        patient_id TEXT NOT NULL,
+        patient_name TEXT NOT NULL,
+        appointment_id TEXT,
+        total_amount REAL NOT NULL,
+        instrument_charges REAL DEFAULT 0,
+        service_charges REAL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'PENDING',
+        paid_amount REAL DEFAULT 0,
+        remaining_amount REAL NOT NULL,
+        FOREIGN KEY (patient_id) REFERENCES patients (id)
+      )
+    ''');
+    // Payment Transactions Table - Individual payments for installments
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS payment_transactions (
+        id TEXT PRIMARY KEY,
+        payment_id TEXT NOT NULL,
+        amount_paid REAL NOT NULL,
+        payment_date TEXT NOT NULL,
+        payment_mode TEXT NOT NULL,
+        received_by TEXT NOT NULL,
+        receipt_number TEXT NOT NULL UNIQUE,
+        notes TEXT,
+        FOREIGN KEY (payment_id) REFERENCES payment_installments (id)
       )
     ''');
   }
@@ -1050,9 +1114,301 @@ class DatabaseHelper {
     await prefs.setInt('followup_months', settings['followUpMonths']);
   }
 
+  // ========== Payment Installment Operations ==========
+  static final List<PaymentInstallment> _webInstallments = [];
+  static final List<PaymentTransaction> _webTransactions = [];
+
+  // Generate unique receipt number
+  String generateReceiptNumber() {
+    final now = DateTime.now();
+    final timestamp = now.millisecondsSinceEpoch;
+    return 'RCP${timestamp.toString().substring(timestamp.toString().length - 8)}';
+  }
+
+  // Create new payment installment
+  Future<int> createPaymentInstallment(PaymentInstallment installment) async {
+    if (kIsWeb) {
+      _webInstallments.add(installment);
+      await _saveWebData();
+      return 1;
+    }
+    final db = await database;
+    return await db.insert('payment_installments', installment.toMap());
+  }
+
+  // Add payment transaction to installment
+  Future<int> addPaymentTransaction(PaymentTransaction transaction) async {
+    if (kIsWeb) {
+      _webTransactions.add(transaction);
+      // Update installment status
+      await _updateInstallmentStatus(transaction.paymentId);
+      await _saveWebData();
+      return 1;
+    }
+    final db = await database;
+    final result = await db.insert('payment_transactions', transaction.toMap());
+    // Update installment status
+    await _updateInstallmentStatus(transaction.paymentId);
+    return result;
+  }
+
+  // Update installment status based on transactions
+  Future<void> _updateInstallmentStatus(String paymentId) async {
+    if (kIsWeb) {
+      final transactions = _webTransactions.where((t) => t.paymentId == paymentId).toList();
+      final totalPaid = transactions.fold<double>(0, (sum, t) => sum + t.amountPaid);
+      
+      final index = _webInstallments.indexWhere((i) => i.id == paymentId);
+      if (index != -1) {
+        final installment = _webInstallments[index];
+        final remaining = installment.totalAmount - totalPaid;
+        
+        String status;
+        if (remaining <= 0) {
+          status = 'FULL_PAID';
+        } else if (totalPaid > 0) {
+          status = 'PARTIAL';
+        } else {
+          status = 'PENDING';
+        }
+        
+        _webInstallments[index] = installment.copyWith(
+          paidAmount: totalPaid,
+          remainingAmount: remaining > 0 ? remaining : 0,
+          status: status,
+        );
+      }
+      return;
+    }
+
+    final db = await database;
+    
+    // Get total paid amount
+    final result = await db.rawQuery('''
+      SELECT SUM(amount_paid) as total_paid
+      FROM payment_transactions
+      WHERE payment_id = ?
+    ''', [paymentId]);
+
+    final totalPaid = (result.first['total_paid'] as num?)?.toDouble() ?? 0.0;
+
+    // Get payment details
+    final payment = await db.query(
+      'payment_installments',
+      where: 'id = ?',
+      whereArgs: [paymentId],
+    );
+
+    if (payment.isNotEmpty) {
+      final totalAmount = (payment.first['total_amount'] as num).toDouble();
+      final remaining = totalAmount - totalPaid;
+
+      String status;
+      if (remaining <= 0) {
+        status = 'FULL_PAID';
+      } else if (totalPaid > 0) {
+        status = 'PARTIAL';
+      } else {
+        status = 'PENDING';
+      }
+
+      await db.update(
+        'payment_installments',
+        {
+          'paid_amount': totalPaid,
+          'remaining_amount': remaining > 0 ? remaining : 0,
+          'status': status,
+        },
+        where: 'id = ?',
+        whereArgs: [paymentId],
+      );
+    }
+  }
+
+  // Get all payment installments
+  Future<List<PaymentInstallment>> getAllPaymentInstallments() async {
+    if (kIsWeb) {
+      return List.from(_webInstallments)..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+    final db = await database;
+    final maps = await db.query('payment_installments', orderBy: 'created_at DESC');
+    return List.generate(maps.length, (i) => PaymentInstallment.fromMap(maps[i]));
+  }
+
+  // Get payment installments by patient
+  Future<List<PaymentInstallment>> getPaymentInstallmentsByPatient(String patientId) async {
+    if (kIsWeb) {
+      return _webInstallments.where((i) => i.patientId == patientId).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+    final db = await database;
+    final maps = await db.query(
+      'payment_installments',
+      where: 'patient_id = ?',
+      whereArgs: [patientId],
+      orderBy: 'created_at DESC',
+    );
+    return List.generate(maps.length, (i) => PaymentInstallment.fromMap(maps[i]));
+  }
+
+  // Get payment installments by status
+  Future<List<PaymentInstallment>> getPaymentInstallmentsByStatus(String status) async {
+    if (kIsWeb) {
+      return _webInstallments.where((i) => i.status == status).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+    final db = await database;
+    final maps = await db.query(
+      'payment_installments',
+      where: 'status = ?',
+      whereArgs: [status],
+      orderBy: 'created_at DESC',
+    );
+    return List.generate(maps.length, (i) => PaymentInstallment.fromMap(maps[i]));
+  }
+
+  // Get pending/partial payment installments
+  Future<List<PaymentInstallment>> getPendingPaymentInstallments() async {
+    if (kIsWeb) {
+      return _webInstallments.where((i) => i.status == 'PENDING' || i.status == 'PARTIAL').toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+    final db = await database;
+    final maps = await db.query(
+      'payment_installments',
+      where: 'status IN (?, ?)',
+      whereArgs: ['PENDING', 'PARTIAL'],
+      orderBy: 'created_at DESC',
+    );
+    return List.generate(maps.length, (i) => PaymentInstallment.fromMap(maps[i]));
+  }
+
+  // Get payment installment by ID
+  Future<PaymentInstallment?> getPaymentInstallment(String id) async {
+    if (kIsWeb) {
+      try {
+        return _webInstallments.firstWhere((i) => i.id == id);
+      } catch (_) {
+        return null;
+      }
+    }
+    final db = await database;
+    final maps = await db.query(
+      'payment_installments',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    if (maps.isNotEmpty) return PaymentInstallment.fromMap(maps.first);
+    return null;
+  }
+
+  // Get transactions for a payment
+  Future<List<PaymentTransaction>> getPaymentTransactions(String paymentId) async {
+    if (kIsWeb) {
+      return _webTransactions.where((t) => t.paymentId == paymentId).toList()
+        ..sort((a, b) => b.paymentDate.compareTo(a.paymentDate));
+    }
+    final db = await database;
+    final maps = await db.query(
+      'payment_transactions',
+      where: 'payment_id = ?',
+      whereArgs: [paymentId],
+      orderBy: 'payment_date DESC',
+    );
+    return List.generate(maps.length, (i) => PaymentTransaction.fromMap(maps[i]));
+  }
+
+  // Get installment summary
+  Future<Map<String, dynamic>> getInstallmentSummary() async {
+    if (kIsWeb) {
+      final totalBills = _webInstallments.length;
+      final totalAmount = _webInstallments.fold<double>(0, (sum, i) => sum + i.totalAmount);
+      final totalPaid = _webInstallments.fold<double>(0, (sum, i) => sum + i.paidAmount);
+      final totalRemaining = _webInstallments.fold<double>(0, (sum, i) => sum + i.remainingAmount);
+      
+      return {
+        'total_bills': totalBills,
+        'total_amount': totalAmount,
+        'total_paid': totalPaid,
+        'total_remaining': totalRemaining,
+        'pending_count': _webInstallments.where((i) => i.status == 'PENDING').length,
+        'partial_count': _webInstallments.where((i) => i.status == 'PARTIAL').length,
+        'full_paid_count': _webInstallments.where((i) => i.status == 'FULL_PAID').length,
+      };
+    }
+    
+    final db = await database;
+    final result = await db.rawQuery('''
+      SELECT 
+        COUNT(*) as total_bills,
+        COALESCE(SUM(total_amount), 0) as total_amount,
+        COALESCE(SUM(paid_amount), 0) as total_paid,
+        COALESCE(SUM(remaining_amount), 0) as total_remaining
+      FROM payment_installments
+    ''');
+
+    final statusResult = await db.rawQuery('''
+      SELECT 
+        status,
+        COUNT(*) as count
+      FROM payment_installments
+      GROUP BY status
+    ''');
+
+    int pendingCount = 0, partialCount = 0, fullPaidCount = 0;
+    for (var row in statusResult) {
+      if (row['status'] == 'PENDING') pendingCount = row['count'] as int;
+      if (row['status'] == 'PARTIAL') partialCount = row['count'] as int;
+      if (row['status'] == 'FULL_PAID') fullPaidCount = row['count'] as int;
+    }
+
+    return {
+      'total_bills': result.first['total_bills'],
+      'total_amount': result.first['total_amount'],
+      'total_paid': result.first['total_paid'],
+      'total_remaining': result.first['total_remaining'],
+      'pending_count': pendingCount,
+      'partial_count': partialCount,
+      'full_paid_count': fullPaidCount,
+    };
+  }
+
+  // Update payment installment
+  Future<int> updatePaymentInstallment(PaymentInstallment installment) async {
+    if (kIsWeb) {
+      final index = _webInstallments.indexWhere((i) => i.id == installment.id);
+      if (index != -1) {
+        _webInstallments[index] = installment;
+        await _saveWebData();
+      }
+      return 1;
+    }
+    final db = await database;
+    return await db.update(
+      'payment_installments',
+      installment.toMap(),
+      where: 'id = ?',
+      whereArgs: [installment.id],
+    );
+  }
+
+  // Delete payment installment
+  Future<int> deletePaymentInstallment(String id) async {
+    if (kIsWeb) {
+      _webInstallments.removeWhere((i) => i.id == id);
+      _webTransactions.removeWhere((t) => t.paymentId == id);
+      await _saveWebData();
+      return 1;
+    }
+    final db = await database;
+    await db.delete('payment_transactions', where: 'payment_id = ?', whereArgs: [id]);
+    return await db.delete('payment_installments', where: 'id = ?', whereArgs: [id]);
+  }
+
   Future close() async {
     if (kIsWeb) return;
     final db = await database;
     await db.close();
   }
 }
+

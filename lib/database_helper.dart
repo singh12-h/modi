@@ -1,0 +1,1058 @@
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
+import 'package:flutter/foundation.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
+import 'package:intl/intl.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:crypto/crypto.dart';
+import 'package:uuid/uuid.dart';
+import 'models.dart';
+
+class DatabaseHelper {
+  static final DatabaseHelper instance = DatabaseHelper._init();
+  static Database? _database;
+
+  // In-memory storage for Web (Static to persist across navigation in same session)
+  static final List<Patient> _webPatients = [];
+  static final List<MedicalHistory> _webMedicalHistory = [];
+  static final List<Prescription> _webPrescriptions = [];
+  static final List<Consultation> _webConsultations = [];
+
+  static final List<Appointment> _webAppointments = [];
+  static final List<Staff> _webStaff = [];
+
+  DatabaseHelper._init() {
+    if (kIsWeb) {
+      // Load persisted data for Web
+      _loadWebData();
+    } else if (defaultTargetPlatform == TargetPlatform.windows || 
+               defaultTargetPlatform == TargetPlatform.linux || 
+               defaultTargetPlatform == TargetPlatform.macOS) {
+      // Initialize sqflite for desktop only
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    }
+    // On Android/iOS, standard sqflite is used automatically
+  }
+
+  // Web Persistence
+  Future<void> _loadWebData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Load Patients
+      final patientsJson = prefs.getString('web_patients');
+      if (patientsJson != null) {
+        final List<dynamic> decoded = jsonDecode(patientsJson);
+        _webPatients.clear();
+        _webPatients.addAll(decoded.map((e) => Patient.fromMap(e)).toList());
+        print('💾 [WEB] Loaded ${_webPatients.length} patients from storage');
+      }
+
+      // Load Appointments
+      final appointmentsJson = prefs.getString('web_appointments');
+      if (appointmentsJson != null) {
+        final List<dynamic> decoded = jsonDecode(appointmentsJson);
+        _webAppointments.clear();
+        _webAppointments.addAll(decoded.map((e) => Appointment.fromMap(e)).toList());
+
+      }
+
+      // Load Staff
+      final staffJson = prefs.getString('web_staff');
+      if (staffJson != null) {
+        final List<dynamic> decoded = jsonDecode(staffJson);
+        _webStaff.clear();
+        _webStaff.addAll(decoded.map((e) => Staff.fromMap(e)).toList());
+      }
+      
+      // Seed default admin if no staff exists
+      if (_webStaff.isEmpty) {
+        await seedDefaultAdmin();
+      }
+      
+      // Load others as needed...
+    } catch (e) {
+      print('🔴 Error loading web data: $e');
+    }
+  }
+
+  Future<void> _saveWebData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Save Patients
+      final patientsJson = jsonEncode(_webPatients.map((p) => p.toMap()).toList());
+      await prefs.setString('web_patients', patientsJson);
+      
+      // Save Appointments
+      final appointmentsJson = jsonEncode(_webAppointments.map((a) => a.toMap()).toList());
+      await prefs.setString('web_appointments', appointmentsJson);
+
+      // Save Staff
+      final staffJson = jsonEncode(_webStaff.map((s) => s.toMap()).toList());
+      await prefs.setString('web_staff', staffJson);
+      
+      print('💾 [WEB] Data saved to storage');
+    } catch (e) {
+      print('🔴 Error saving web data: $e');
+    }
+  }
+
+  Future<Database> get database async {
+    if (kIsWeb) {
+      throw UnsupportedError('SQL database not supported on web fallback');
+    }
+    if (_database != null) return _database!;
+    print('Initializing database...'); // Debug
+    _database = await _initDB('patients.db');
+    print('Database initialized'); // Debug
+    return _database!;
+  }
+
+  Future<Database> _initDB(String filePath) async {
+    final dbPath = await getDatabasesPath();
+    print('Database path: $dbPath'); // Debug
+    final path = join(dbPath, filePath);
+    print('Opening database at $path'); // Debug
+    return await openDatabase(
+      path,
+      version: 9,
+      onCreate: _createDB,
+      onUpgrade: _onUpgrade,
+      onOpen: (db) async {
+        await _seedDefaultAdmin(db);
+      },
+    );
+  }
+
+  Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    print('Upgrading database from version $oldVersion to $newVersion...');
+    if (oldVersion < 2) {
+      await db.execute('ALTER TABLE patients ADD COLUMN address TEXT');
+      await db.execute('ALTER TABLE patients ADD COLUMN medicalHistory TEXT');
+      await db.execute('ALTER TABLE patients ADD COLUMN symptoms TEXT');
+      await db.execute('ALTER TABLE patients ADD COLUMN emergencyContact TEXT');
+    }
+    if (oldVersion < 6) {
+      await db.execute('ALTER TABLE patients ADD COLUMN is_appointment INTEGER DEFAULT 0');
+    }
+    if (oldVersion < 3) {
+      await db.execute('ALTER TABLE patients ADD COLUMN blood_group TEXT');
+      await db.execute('ALTER TABLE patients ADD COLUMN allergies TEXT');
+      await db.execute('ALTER TABLE patients ADD COLUMN registered_date TEXT');
+      await db.execute('ALTER TABLE patients ADD COLUMN last_visit TEXT');
+      await db.execute('ALTER TABLE patients ADD COLUMN consultation_count INTEGER DEFAULT 0');
+      await db.execute('''
+        UPDATE patients 
+        SET registered_date = registrationTime 
+        WHERE registered_date IS NULL
+      ''');
+      await db.execute('''
+        CREATE TABLE medical_history (
+          id TEXT PRIMARY KEY,
+          patient_id TEXT NOT NULL,
+          previous_conditions TEXT,
+          current_diagnosis TEXT,
+          notes TEXT,
+          allergies TEXT,
+          blood_group TEXT,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY (patient_id) REFERENCES patients (id)
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE prescriptions (
+          id TEXT PRIMARY KEY,
+          patient_id TEXT NOT NULL,
+          medicine_name TEXT NOT NULL,
+          dosage TEXT NOT NULL,
+          frequency TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          is_current INTEGER DEFAULT 1,
+          FOREIGN KEY (patient_id) REFERENCES patients (id)
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE consultations (
+          id TEXT PRIMARY KEY,
+          patient_id TEXT NOT NULL,
+          date TEXT NOT NULL,
+          reason TEXT,
+          doctor_id TEXT NOT NULL,
+          doctor_name TEXT,
+          diagnosis TEXT,
+          medications TEXT,
+          notes TEXT,
+          prescription TEXT,
+          follow_up_date TEXT,
+          checkup_details TEXT,
+          FOREIGN KEY (patient_id) REFERENCES patients (id)
+        )
+      ''');
+    }
+    if (oldVersion < 4) {
+      await db.execute('''
+        CREATE TABLE appointments (
+          id TEXT PRIMARY KEY,
+          patient_name TEXT NOT NULL,
+          mobile TEXT NOT NULL,
+          date TEXT NOT NULL,
+          time TEXT NOT NULL,
+          type TEXT NOT NULL,
+          reason TEXT,
+          status TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )
+      ''');
+    }
+    if (oldVersion < 5) {
+      await db.execute('ALTER TABLE appointments ADD COLUMN patient_id TEXT');
+      await db.execute('ALTER TABLE appointments ADD COLUMN patient_image TEXT');
+      await db.execute('ALTER TABLE appointments ADD COLUMN rejection_reason TEXT');
+      await db.execute('ALTER TABLE appointments ADD COLUMN verified_at TEXT');
+    }
+    if (oldVersion < 7) {
+      await db.execute('ALTER TABLE prescriptions ADD COLUMN manufacturer TEXT');
+      await db.execute('ALTER TABLE prescriptions ADD COLUMN mr_name TEXT');
+      await db.execute('ALTER TABLE prescriptions ADD COLUMN start_date TEXT');
+      await db.execute('ALTER TABLE prescriptions ADD COLUMN generic_name TEXT');
+      await db.execute('ALTER TABLE prescriptions ADD COLUMN composition TEXT');
+      await db.execute('ALTER TABLE prescriptions ADD COLUMN form TEXT');
+      await db.execute('ALTER TABLE prescriptions ADD COLUMN instructions TEXT');
+      await db.execute('ALTER TABLE prescriptions ADD COLUMN duration INTEGER');
+      await db.execute('ALTER TABLE prescriptions ADD COLUMN notes TEXT');
+    }
+    if (oldVersion < 8) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS payments (
+          id TEXT PRIMARY KEY,
+          patient_id TEXT NOT NULL,
+          patient_name TEXT NOT NULL,
+          token TEXT NOT NULL,
+          amount REAL NOT NULL,
+          status TEXT NOT NULL,
+          date TEXT NOT NULL,
+          payment_date TEXT,
+          payment_method TEXT,
+          notes TEXT,
+          FOREIGN KEY (patient_id) REFERENCES patients (id)
+        )
+      ''');
+    }
+    if (oldVersion < 9) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS staff (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          username TEXT NOT NULL UNIQUE,
+          password_hash TEXT NOT NULL,
+          salt TEXT NOT NULL,
+          role TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )
+      ''');
+    }
+  }
+
+  Future _createDB(Database db, int version) async {
+    print('Creating database tables...'); // Debug
+    await db.execute('''
+      CREATE TABLE patients (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        token TEXT NOT NULL,
+        age TEXT NOT NULL,
+        gender TEXT NOT NULL,
+        mobile TEXT NOT NULL,
+        status INTEGER NOT NULL,
+        photoPath TEXT,
+        address TEXT,
+        medicalHistory TEXT,
+        symptoms TEXT,
+        emergencyContact TEXT,
+        registrationTime TEXT NOT NULL,
+        blood_group TEXT,
+        allergies TEXT,
+        registered_date TEXT NOT NULL,
+        last_visit TEXT,
+        consultation_count INTEGER DEFAULT 0,
+        history TEXT,
+        is_appointment INTEGER DEFAULT 0
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE medical_history (
+        id TEXT PRIMARY KEY,
+        patient_id TEXT NOT NULL,
+        previous_conditions TEXT,
+        current_diagnosis TEXT,
+        notes TEXT,
+        allergies TEXT,
+        blood_group TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (patient_id) REFERENCES patients (id)
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE prescriptions (
+        id TEXT PRIMARY KEY,
+        patient_id TEXT NOT NULL,
+        medicine_name TEXT NOT NULL,
+        dosage TEXT NOT NULL,
+        frequency TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        is_current INTEGER DEFAULT 1,
+        manufacturer TEXT,
+        mr_name TEXT,
+        start_date TEXT,
+        generic_name TEXT,
+        composition TEXT,
+        form TEXT,
+        instructions TEXT,
+        duration INTEGER,
+        notes TEXT,
+        FOREIGN KEY (patient_id) REFERENCES patients (id)
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE consultations (
+        id TEXT PRIMARY KEY,
+        patient_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        reason TEXT,
+        doctor_id TEXT NOT NULL,
+        doctor_name TEXT,
+        diagnosis TEXT,
+        medications TEXT,
+        notes TEXT,
+        prescription TEXT,
+        follow_up_date TEXT,
+        checkup_details TEXT,
+        FOREIGN KEY (patient_id) REFERENCES patients (id)
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE appointments (
+        id TEXT PRIMARY KEY,
+        patient_name TEXT NOT NULL,
+        mobile TEXT NOT NULL,
+        date TEXT NOT NULL,
+        time TEXT NOT NULL,
+        type TEXT NOT NULL,
+        reason TEXT,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        patient_id TEXT,
+        patient_image TEXT,
+        rejection_reason TEXT,
+        verified_at TEXT
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE payments (
+        id TEXT PRIMARY KEY,
+        patient_id TEXT NOT NULL,
+        patient_name TEXT NOT NULL,
+        token TEXT NOT NULL,
+        amount REAL NOT NULL,
+        status TEXT NOT NULL,
+        date TEXT NOT NULL,
+        payment_date TEXT,
+        payment_method TEXT,
+        notes TEXT,
+        FOREIGN KEY (patient_id) REFERENCES patients (id)
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE staff (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        salt TEXT NOT NULL,
+        role TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    ''');
+  }
+
+  // Staff Operations & Authentication
+  Future<void> _seedDefaultAdmin(Database db) async {
+    final count = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM staff'));
+    if (count == 0) {
+      print('🔐 Seeding default admin account...');
+      const salt = 'random_salt_value'; // In production, generate random salt
+      final bytes = utf8.encode('admin123' + salt);
+      final hash = sha256.convert(bytes).toString();
+      
+      await db.insert('staff', {
+        'id': const Uuid().v4(),
+        'name': 'Administrator',
+        'username': 'admin',
+        'password_hash': hash,
+        'salt': salt,
+        'role': 'doctor',
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    }
+  }
+
+  Future<void> seedDefaultAdmin() async {
+    if (kIsWeb) {
+      if (_webStaff.isEmpty) {
+         print('🔐 [WEB] Seeding default admin account...');
+        const salt = 'random_salt_value';
+        final bytes = utf8.encode('admin123' + salt);
+        final hash = sha256.convert(bytes).toString();
+        
+        _webStaff.add(Staff(
+          id: const Uuid().v4(),
+          name: 'Administrator',
+          username: 'admin',
+          passwordHash: hash,
+          salt: salt,
+          role: 'doctor',
+          createdAt: DateTime.now(),
+        ));
+        await _saveWebData();
+      }
+    }
+    // For mobile/desktop, it's handled in onOpen
+  }
+
+  Future<Staff?> authenticate(String username, String password) async {
+    if (kIsWeb) {
+      try {
+        final staff = _webStaff.firstWhere((s) => s.username == username);
+        final bytes = utf8.encode(password + staff.salt);
+        final hash = sha256.convert(bytes).toString();
+        if (hash == staff.passwordHash) {
+          return staff;
+        }
+      } catch (_) {}
+      return null;
+    }
+
+    final db = await database;
+    final maps = await db.query('staff', where: 'username = ?', whereArgs: [username]);
+    if (maps.isNotEmpty) {
+      final staff = Staff.fromMap(maps.first);
+      final bytes = utf8.encode(password + staff.salt);
+      final hash = sha256.convert(bytes).toString();
+      if (hash == staff.passwordHash) {
+        return staff;
+      }
+    }
+    return null;
+  }
+
+  Future<int> insertStaff(Staff staff) async {
+    if (kIsWeb) {
+      _webStaff.add(staff);
+      await _saveWebData();
+      return 1;
+    }
+    final db = await database;
+    return await db.insert('staff', staff.toMap());
+  }
+
+  Future<int> updateStaff(Staff staff) async {
+    if (kIsWeb) {
+      final index = _webStaff.indexWhere((s) => s.id == staff.id);
+      if (index != -1) {
+        _webStaff[index] = staff;
+        await _saveWebData();
+      }
+      return 1;
+    }
+    final db = await database;
+    return await db.update('staff', staff.toMap(), where: 'id = ?', whereArgs: [staff.id]);
+  }
+
+  Future<int> deleteStaff(String id) async {
+    if (kIsWeb) {
+      _webStaff.removeWhere((s) => s.id == id);
+      await _saveWebData();
+      return 1;
+    }
+    final db = await database;
+    return await db.delete('staff', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<List<Staff>> getAllStaff() async {
+    if (kIsWeb) {
+      return List.from(_webStaff);
+    }
+    final db = await database;
+    final maps = await db.query('staff');
+    return List.generate(maps.length, (i) => Staff.fromMap(maps[i]));
+  }
+
+  Future<Staff?> getStaffByUsername(String username) async {
+    if (kIsWeb) {
+      try {
+        return _webStaff.firstWhere((s) => s.username == username);
+      } catch (_) {
+        return null;
+      }
+    }
+    final db = await database;
+    final maps = await db.query('staff', where: 'username = ?', whereArgs: [username]);
+    if (maps.isNotEmpty) return Staff.fromMap(maps.first);
+    return null;
+  }
+
+  // Patient Operations
+  Future<Patient?> getPatient(String id) async {
+    if (kIsWeb) {
+      try {
+        return _webPatients.firstWhere((p) => p.id == id);
+      } catch (_) {
+        return null;
+      }
+    }
+    final db = await database;
+    final maps = await db.query('patients', where: 'id = ?', whereArgs: [id]);
+    if (maps.isNotEmpty) return Patient.fromMap(maps.first);
+    return null;
+  }
+
+  Future<int> updatePatient(Patient patient) async {
+    print('DB: Updating patient ${patient.id} status to ${patient.status}');
+    if (kIsWeb) {
+      final index = _webPatients.indexWhere((p) => p.id == patient.id);
+      if (index != -1) {
+        _webPatients[index] = patient;
+        print('✏️ [WEB] Updated patient: ${patient.name} - Status: ${patient.status}');
+      }
+      await _saveWebData();
+      return 1;
+    }
+    final db = await database;
+    final result = await db.update('patients', patient.toMap(), where: 'id = ?', whereArgs: [patient.id]);
+    print('DB: Update result: $result');
+    return result;
+  }
+
+  Future<List<Patient>> getAllPatients() async {
+    if (kIsWeb) {
+      if (_webPatients.isEmpty) {
+        print('⏳ [WEB] Waiting for data load...');
+        await _loadWebData();
+      }
+      print('📋 [WEB] getAllPatients: ${_webPatients.length} patients');
+      final sorted = List<Patient>.from(_webPatients);
+      sorted.sort((a, b) => b.registrationTime.compareTo(a.registrationTime));
+      return sorted;
+    }
+    final db = await database;
+    final maps = await db.query('patients', orderBy: 'registrationTime DESC');
+    print('DB: Fetched ${maps.length} patients');
+    return List.generate(maps.length, (i) => Patient.fromMap(maps[i]));
+  }
+
+  Future<int> insertPatient(Patient patient) async {
+    print('DB: Inserting patient ${patient.name} with status: ${patient.status} (Index: ${patient.status.index})');
+    if (kIsWeb) {
+      final index = _webPatients.indexWhere((p) => p.id == patient.id);
+      if (index != -1) {
+        _webPatients[index] = patient;
+      } else {
+        _webPatients.add(patient);
+      }
+      await _saveWebData();
+      return 1;
+    }
+    final db = await database;
+    return await db.insert('patients', patient.toMap());
+  }
+
+  Future<List<Patient>> getPatientsByDate(DateTime date) async {
+    if (kIsWeb) {
+      final startOfDay = DateTime(date.year, date.month, date.day);
+      final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
+      final filtered = _webPatients.where((patient) {
+        final regTime = patient.registeredDate ?? patient.registrationTime;
+        return regTime.isAfter(startOfDay) && regTime.isBefore(endOfDay);
+      }).toList();
+      print('📋 [WEB] getPatientsByDate: Found ${filtered.length} patients');
+      return filtered;
+    }
+    final db = await database;
+    final startOfDay = DateTime(date.year, date.month, date.day).toIso8601String();
+    final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59).toIso8601String();
+    final maps = await db.query('patients', where: 'registrationTime BETWEEN ? AND ?', whereArgs: [startOfDay, endOfDay]);
+    return List.generate(maps.length, (i) => Patient.fromMap(maps[i]));
+  }
+
+  Future<List<Patient>> getPatientsByMobile(String mobile) async {
+    if (kIsWeb) {
+      final filtered = _webPatients.where((patient) => patient.mobile == mobile).toList();
+      // Sort by registration time descending (most recent first)
+      filtered.sort((a, b) => b.registrationTime.compareTo(a.registrationTime));
+      print('📋 [WEB] getPatientsByMobile: Found ${filtered.length} patients');
+      return filtered;
+    }
+    final db = await database;
+    final maps = await db.query('patients', where: 'mobile = ?', whereArgs: [mobile], orderBy: 'registrationTime DESC');
+    return List.generate(maps.length, (i) => Patient.fromMap(maps[i]));
+  }
+
+
+  Future<int> deletePatient(String patientId) async {
+    if (kIsWeb) {
+      _webPatients.removeWhere((p) => p.id == patientId);
+      await _saveWebData();
+      return 1;
+    }
+    final db = await database;
+    return await db.delete('patients', where: 'id = ?', whereArgs: [patientId]);
+  }
+
+  // Consultation Operations
+  Future<List<Consultation>> getConsultations(String patientId) async {
+    if (kIsWeb) {
+      final consultations = _webConsultations.where((c) => c.patientId == patientId).toList();
+      consultations.sort((a, b) => b.date.compareTo(a.date));
+      return consultations;
+    }
+    final db = await database;
+    final maps = await db.query('consultations', where: 'patient_id = ?', whereArgs: [patientId], orderBy: 'date DESC');
+    return List.generate(maps.length, (i) => Consultation.fromMap(maps[i]));
+  }
+
+  Future<void> updatePatientStats(String patientId) async {
+    final patient = await getPatient(patientId);
+    if (patient == null) return;
+    final consultations = await getConsultations(patientId);
+    final updatedPatient = patient.copyWith(lastVisit: DateTime.now(), consultationCount: consultations.length);
+    await updatePatient(updatedPatient);
+  }
+
+  Future<int> getPendingFollowUpsCount() async {
+    final now = DateTime.now();
+    final todayStr = DateFormat('yyyy-MM-dd').format(now);
+    
+    if (kIsWeb) {
+      return _webConsultations.where((c) => c.followUpDate == todayStr).length;
+    }
+    
+    final db = await database;
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM consultations WHERE follow_up_date = ?', 
+      [todayStr]
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  Future<int> getNotificationCount() async {
+    final pendingAppts = await getPendingAppointmentsCount();
+    
+    // Pending payments
+    int pendingPayments = 0;
+    if (kIsWeb) {
+      pendingPayments = _webPayments.where((p) => p.status == 'pending').length;
+    } else {
+      final db = await database;
+      final result = await db.rawQuery("SELECT COUNT(*) as count FROM payments WHERE status = 'pending'");
+      pendingPayments = Sqflite.firstIntValue(result) ?? 0;
+    }
+
+    // Today's follow-ups
+    final followUps = await getTodayFollowUps();
+    
+    return pendingAppts + pendingPayments + followUps.length;
+  }
+
+  // Medical History Operations
+  Future<List<Consultation>> getTodayFollowUps() async {
+    final now = DateTime.now();
+    final todayStr = DateFormat('yyyy-MM-dd').format(now);
+    
+    if (kIsWeb) {
+      return _webConsultations.where((c) => c.followUpDate == todayStr).toList();
+    }
+    
+    final db = await database;
+    final maps = await db.query('consultations', where: 'follow_up_date = ?', whereArgs: [todayStr]);
+    return List.generate(maps.length, (i) => Consultation.fromMap(maps[i]));
+  }
+
+  Future<MedicalHistory?> getMedicalHistory(String patientId) async {
+    if (kIsWeb) {
+      try {
+        return _webMedicalHistory.firstWhere((h) => h.patientId == patientId);
+      } catch (_) {
+        return null;
+      }
+    }
+    final db = await database;
+    final maps = await db.query('medical_history', where: 'patient_id = ?', whereArgs: [patientId]);
+    if (maps.isNotEmpty) return MedicalHistory.fromMap(maps.first);
+    return null;
+  }
+
+  Future<List<Consultation>> getUpcomingFollowUps() async {
+    final now = DateTime.now();
+    final todayStr = DateFormat('yyyy-MM-dd').format(now);
+    
+    if (kIsWeb) {
+      return _webConsultations.where((c) {
+        if (c.followUpDate == null) return false;
+        final followUp = DateFormat('yyyy-MM-dd').format(c.followUpDate!);
+        return followUp.compareTo(todayStr) >= 0;
+      }).toList()..sort((a, b) => a.followUpDate!.compareTo(b.followUpDate!));
+    }
+    
+    final db = await database;
+    final maps = await db.query(
+      'consultations', 
+      where: 'follow_up_date >= ?', 
+      whereArgs: [todayStr],
+      orderBy: 'follow_up_date ASC'
+    );
+    return List.generate(maps.length, (i) => Consultation.fromMap(maps[i]));
+  }
+
+  Future<int> insertMedicalHistory(MedicalHistory history) async {
+    if (kIsWeb) {
+      final index = _webMedicalHistory.indexWhere((h) => h.patientId == history.patientId);
+      if (index != -1) {
+        _webMedicalHistory[index] = history;
+      } else {
+        _webMedicalHistory.add(history);
+      }
+      return 1;
+    }
+    final db = await database;
+    return await db.insert('medical_history', history.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<int> updateMedicalHistory(MedicalHistory history) async {
+    if (kIsWeb) {
+      final index = _webMedicalHistory.indexWhere((h) => h.id == history.id);
+      if (index != -1) {
+        _webMedicalHistory[index] = history;
+      }
+      return 1;
+    }
+    final db = await database;
+    return await db.update('medical_history', history.toMap(), where: 'id = ?', whereArgs: [history.id]);
+  }
+
+  // Prescription Operations
+  Future<List<Prescription>> getCurrentPrescriptions(String patientId) async {
+    if (kIsWeb) {
+      final prescriptions = _webPrescriptions.where((p) => p.patientId == patientId && p.isCurrent).toList();
+      prescriptions.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return prescriptions;
+    }
+    final db = await database;
+    final maps = await db.query('prescriptions', where: 'patient_id = ? AND is_current = 1', whereArgs: [patientId], orderBy: 'created_at DESC');
+    return List.generate(maps.length, (i) => Prescription.fromMap(maps[i]));
+  }
+
+  Future<int> insertPrescription(Prescription prescription) async {
+    if (kIsWeb) {
+      _webPrescriptions.add(prescription);
+      return 1;
+    }
+    final db = await database;
+    return await db.insert('prescriptions', prescription.toMap());
+  }
+
+  Future<int> markPrescriptionsAsOld(String patientId) async {
+    if (kIsWeb) {
+      for (var i = 0; i < _webPrescriptions.length; i++) {
+        if (_webPrescriptions[i].patientId == patientId) {
+          _webPrescriptions[i] = Prescription(
+            id: _webPrescriptions[i].id,
+            patientId: _webPrescriptions[i].patientId,
+            medicineName: _webPrescriptions[i].medicineName,
+            dosage: _webPrescriptions[i].dosage,
+            frequency: _webPrescriptions[i].frequency,
+            createdAt: _webPrescriptions[i].createdAt,
+            isCurrent: false,
+          );
+        }
+      }
+      return 1;
+    }
+    final db = await database;
+    return await db.update('prescriptions', {'is_current': 0}, where: 'patient_id = ?', whereArgs: [patientId]);
+  }
+
+  Future<int> insertConsultation(Consultation consultation) async {
+    if (kIsWeb) {
+      _webConsultations.add(consultation);
+      return 1;
+    }
+    final db = await database;
+    return await db.insert('consultations', consultation.toMap());
+  }
+
+  // Appointment Operations
+  Future<List<Appointment>> getAppointmentsByDate(DateTime date) async {
+    if (kIsWeb) {
+      final targetDate = DateTime(date.year, date.month, date.day);
+      return _webAppointments.where((apt) {
+        final aptDate = DateTime(apt.date.year, apt.date.month, apt.date.day);
+        return aptDate.isAtSameMomentAs(targetDate) && apt.status != 'cancelled';
+      }).toList();
+    }
+    final db = await database;
+    final dateStr = DateFormat('yyyy-MM-dd').format(date);
+    final maps = await db.query('appointments', where: 'date LIKE ? AND status != ?', whereArgs: ['%$dateStr%', 'cancelled'], orderBy: 'time ASC');
+    return List.generate(maps.length, (i) => Appointment.fromMap(maps[i]));
+  }
+
+  Future<List<Appointment>> getPendingAppointments() async {
+    if (kIsWeb) {
+      return _webAppointments.where((apt) => apt.status == 'pending').toList()
+        ..sort((a, b) {
+          final dateCompare = a.date.compareTo(b.date);
+          if (dateCompare != 0) return dateCompare;
+          return a.time.compareTo(b.time);
+        });
+    }
+    final db = await database;
+    final maps = await db.query('appointments', where: 'status = ?', whereArgs: ['pending'], orderBy: 'date ASC, time ASC');
+    return List.generate(maps.length, (i) => Appointment.fromMap(maps[i]));
+  }
+
+  Future<int> updateAppointmentStatus(String id, String status) async {
+    if (kIsWeb) {
+      final index = _webAppointments.indexWhere((apt) => apt.id == id);
+      if (index != -1) {
+        _webAppointments[index] = _webAppointments[index].copyWith(status: status);
+      }
+      await _saveWebData();
+      return 1;
+    }
+    final db = await database;
+    return await db.update('appointments', {'status': status}, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> insertAppointment(Appointment appointment) async {
+    if (kIsWeb) {
+      _webAppointments.add(appointment);
+      await _saveWebData();
+      return 1;
+    }
+    final db = await database;
+    return await db.insert('appointments', appointment.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<int> confirmAppointment(String appointmentId, String patientId, String? imagePath) async {
+    if (kIsWeb) {
+      final index = _webAppointments.indexWhere((apt) => apt.id == appointmentId);
+      if (index != -1) {
+        _webAppointments[index] = Appointment(
+          id: _webAppointments[index].id,
+          patientName: _webAppointments[index].patientName,
+          mobile: _webAppointments[index].mobile,
+          date: _webAppointments[index].date,
+          time: _webAppointments[index].time,
+          type: _webAppointments[index].type,
+          reason: _webAppointments[index].reason,
+          status: 'confirmed',
+          createdAt: _webAppointments[index].createdAt,
+          patientId: patientId,
+          patientImage: imagePath,
+          verifiedAt: DateTime.now(),
+        );
+      }
+      await _saveWebData();
+      return 1;
+    }
+    final db = await database;
+    return await db.update('appointments', {'status': 'confirmed', 'patient_id': patientId, 'patient_image': imagePath, 'verified_at': DateTime.now().toIso8601String()}, where: 'id = ?', whereArgs: [appointmentId]);
+  }
+
+  Future<int> rejectAppointment(String appointmentId, String reason) async {
+    if (kIsWeb) {
+      final index = _webAppointments.indexWhere((apt) => apt.id == appointmentId);
+      if (index != -1) {
+        _webAppointments[index] = _webAppointments[index].copyWith(status: 'rejected', rejectionReason: reason);
+      }
+      await _saveWebData();
+      return 1;
+    }
+    final db = await database;
+    return await db.update('appointments', {'status': 'rejected', 'rejection_reason': reason}, where: 'id = ?', whereArgs: [appointmentId]);
+  }
+
+  Future<List<Appointment>> getConfirmedAppointments() async {
+    if (kIsWeb) {
+      return _webAppointments.where((apt) => apt.status == 'confirmed').toList()
+        ..sort((a, b) {
+          final dateCompare = a.date.compareTo(b.date);
+          if (dateCompare != 0) return dateCompare;
+          return a.time.compareTo(b.time);
+        });
+    }
+    final db = await database;
+    final maps = await db.query('appointments', where: 'status = ?', whereArgs: ['confirmed'], orderBy: 'date ASC, time ASC');
+    return List.generate(maps.length, (i) => Appointment.fromMap(maps[i]));
+  }
+
+  Future<int> autoRejectExpiredAppointments() async {
+    if (kIsWeb) {
+      final now = DateTime.now();
+      final startOfToday = DateTime(now.year, now.month, now.day);
+      int count = 0;
+      for (int i = 0; i < _webAppointments.length; i++) {
+        final apt = _webAppointments[i];
+        final aptDate = DateTime(apt.date.year, apt.date.month, apt.date.day);
+        if ((apt.status == 'pending' || apt.status == 'confirmed') && aptDate.isBefore(startOfToday)) {
+          _webAppointments[i] = apt.copyWith(status: 'rejected', rejectionReason: 'Auto-rejected: Patient did not arrive');
+          count++;
+        }
+      }
+      return count;
+    }
+    final db = await database;
+    final now = DateTime.now();
+    final startOfToday = DateTime(now.year, now.month, now.day);
+    return await db.update('appointments', {'status': 'rejected', 'rejection_reason': 'Auto-rejected: Patient did not arrive'}, where: 'status IN (?, ?) AND date < ?', whereArgs: ['pending', 'confirmed', startOfToday.toIso8601String()]);
+  }
+
+  Future<int> getPendingAppointmentsCount() async {
+    if (kIsWeb) {
+      return _webAppointments.where((apt) => apt.status == 'pending').length;
+    }
+    final db = await database;
+    final result = await db.rawQuery("SELECT COUNT(*) as count FROM appointments WHERE status = 'pending'");
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  // Payment Operations
+  static final List<Payment> _webPayments = [];
+  
+  Future<int> insertPayment(Payment payment) async {
+    if (kIsWeb) {
+      _webPayments.add(payment);
+      await _saveWebData();
+      return 1;
+    }
+    final db = await database;
+    return await db.insert('payments', payment.toMap());
+  }
+
+  Future<int> updatePayment(Payment payment) async {
+    if (kIsWeb) {
+      final index = _webPayments.indexWhere((p) => p.id == payment.id);
+      if (index != -1) {
+        _webPayments[index] = payment;
+        await _saveWebData();
+      }
+      return 1;
+    }
+    final db = await database;
+    return await db.update('payments', payment.toMap(), where: 'id = ?', whereArgs: [payment.id]);
+  }
+
+  Future<List<Payment>> getAllPayments() async {
+    if (kIsWeb) {
+      return List.from(_webPayments)..sort((a, b) => b.date.compareTo(a.date));
+    }
+    final db = await database;
+    final maps = await db.query('payments', orderBy: 'date DESC');
+    return List.generate(maps.length, (i) => Payment.fromMap(maps[i]));
+  }
+
+  Future<Payment?> getPaymentByPatient(String patientId) async {
+    if (kIsWeb) {
+      try {
+        return _webPayments.firstWhere((p) => p.patientId == patientId);
+      } catch (_) {
+        return null;
+      }
+    }
+    final db = await database;
+    final maps = await db.query('payments', where: 'patient_id = ?', whereArgs: [patientId], orderBy: 'date DESC', limit: 1);
+    if (maps.isNotEmpty) return Payment.fromMap(maps.first);
+    return null;
+  }
+
+  Future<List<Payment>> getPaymentsByPatient(String patientId) async {
+    if (kIsWeb) {
+      return _webPayments.where((p) => p.patientId == patientId).toList()
+        ..sort((a, b) => b.date.compareTo(a.date));
+    }
+    final db = await database;
+    final maps = await db.query('payments', where: 'patient_id = ?', whereArgs: [patientId], orderBy: 'date DESC');
+    return List.generate(maps.length, (i) => Payment.fromMap(maps[i]));
+  }
+
+  Future<List<Payment>> getPaymentsByStatus(String status) async {
+    if (kIsWeb) {
+      return _webPayments.where((p) => p.status == status).toList()
+        ..sort((a, b) => b.date.compareTo(a.date));
+    }
+    final db = await database;
+    final maps = await db.query('payments', where: 'status = ?', whereArgs: [status], orderBy: 'date DESC');
+    return List.generate(maps.length, (i) => Payment.fromMap(maps[i]));
+  }
+
+  Future<bool> isPaymentCompleted(String patientId) async {
+    final payment = await getPaymentByPatient(patientId);
+    return payment?.status == 'paid';
+  }
+
+  Future<int> getPendingPaymentsCount() async {
+    if (kIsWeb) {
+      return _webPayments.where((p) => p.status == 'pending').length;
+    }
+    final db = await database;
+    final result = await db.rawQuery("SELECT COUNT(*) as count FROM payments WHERE status = 'pending'");
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  // Payment Settings
+  Future<Map<String, dynamic>?> getPaymentSettings() async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      final doctorFees = prefs.getDouble('doctor_fees');
+      final followUpFees = prefs.getDouble('followup_fees');
+      final followUpMonths = prefs.getInt('followup_months');
+      
+      if (doctorFees == null) return null;
+      
+      return {
+        'doctorFees': doctorFees,
+        'followUpFees': followUpFees ?? 250.0,
+        'followUpMonths': followUpMonths ?? 3,
+      };
+    }
+    
+    final prefs = await SharedPreferences.getInstance();
+    final doctorFees = prefs.getDouble('doctor_fees');
+    final followUpFees = prefs.getDouble('followup_fees');
+    final followUpMonths = prefs.getInt('followup_months');
+    
+    if (doctorFees == null) return null;
+    
+    return {
+      'doctorFees': doctorFees,
+      'followUpFees': followUpFees ?? 250.0,
+      'followUpMonths': followUpMonths ?? 3,
+    };
+  }
+
+  Future<void> savePaymentSettings(Map<String, dynamic> settings) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('doctor_fees', settings['doctorFees']);
+    await prefs.setDouble('followup_fees', settings['followUpFees']);
+    await prefs.setInt('followup_months', settings['followUpMonths']);
+  }
+
+  Future close() async {
+    if (kIsWeb) return;
+    final db = await database;
+    await db.close();
+  }
+}

@@ -11,11 +11,13 @@ import 'pdf_service.dart';
 class PaymentInstallmentScreen extends StatefulWidget {
   final bool isStaff;
   final String userName; // Staff or Doctor name
+  final bool embedded; // If true, no AppBar (used inside Payment Management)
   
   const PaymentInstallmentScreen({
     super.key,
     this.isStaff = false,
     required this.userName,
+    this.embedded = false,
   });
 
   @override
@@ -23,7 +25,7 @@ class PaymentInstallmentScreen extends StatefulWidget {
 }
 
 class _PaymentInstallmentScreenState extends State<PaymentInstallmentScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+  TabController? _tabController;
   List<PaymentInstallment> _allInstallments = [];
   List<PaymentInstallment> _pendingInstallments = [];
   List<PaymentInstallment> _fullPaidInstallments = [];
@@ -32,13 +34,15 @@ class _PaymentInstallmentScreenState extends State<PaymentInstallmentScreen> wit
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    if (!widget.embedded) {
+      _tabController = TabController(length: 4, vsync: this);
+    }
     _loadInstallments();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController?.dispose();
     super.dispose();
   }
 
@@ -62,6 +66,29 @@ class _PaymentInstallmentScreenState extends State<PaymentInstallmentScreen> wit
 
   @override
   Widget build(BuildContext context) {
+    // Embedded mode - no AppBar, simple list with FAB
+    if (widget.embedded) {
+      return Stack(
+        children: [
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _buildInstallmentList(_allInstallments),
+          Positioned(
+            right: 16,
+            bottom: 16,
+            child: FloatingActionButton.extended(
+              onPressed: () => _showCreateBillDialog(),
+              icon: const Icon(Icons.add),
+              label: const Text('New Bill'),
+              backgroundColor: const Color(0xFF6B21A8),
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Standalone mode - full screen with AppBar and tabs
     return Scaffold(
       appBar: AppBar(
         title: const Text('💰 Installment Payments'),

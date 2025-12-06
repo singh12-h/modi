@@ -27,7 +27,7 @@ class _PaymentManagementState extends State<PaymentManagement> with SingleTicker
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: widget.isStaff ? 3 : 4, vsync: this);
+    _tabController = TabController(length: widget.isStaff ? 4 : 5, vsync: this);
     _loadPayments();
     _loadSettings();
   }
@@ -89,34 +89,15 @@ class _PaymentManagementState extends State<PaymentManagement> with SingleTicker
         title: const Text('Payment Management'),
         backgroundColor: const Color(0xFF6B21A8),
         foregroundColor: Colors.white,
-        actions: [
-          // Installment Payments Button
-          TextButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => PaymentInstallmentScreen(
-                    isStaff: widget.isStaff,
-                    userName: widget.isStaff ? 'Staff' : 'Doctor',
-                  ),
-                ),
-              );
-            },
-            icon: const Icon(Icons.receipt_long, color: Colors.white),
-            label: const Text(
-              'Installments',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
-        tabs: [
-            const Tab(icon: Icon(Icons.payment), text: 'All Payments'),
+          isScrollable: true,
+          tabs: [
+            const Tab(icon: Icon(Icons.dashboard), text: 'Summary'),
+            const Tab(icon: Icon(Icons.receipt_long), text: 'Installments'),
             const Tab(icon: Icon(Icons.pending_actions), text: 'Pending'),
             const Tab(icon: Icon(Icons.check_circle), text: 'Completed'),
             if (!widget.isStaff) const Tab(icon: Icon(Icons.settings), text: 'Settings'),
@@ -126,7 +107,8 @@ class _PaymentManagementState extends State<PaymentManagement> with SingleTicker
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildAllPaymentsTab(),
+          _buildSummaryTab(),
+          _buildInstallmentsTab(),
           _buildPendingPaymentsTab(),
           _buildCompletedPaymentsTab(),
           if (!widget.isStaff) _buildSettingsTab(),
@@ -135,10 +117,196 @@ class _PaymentManagementState extends State<PaymentManagement> with SingleTicker
     );
   }
 
+  // Summary Tab - Combined totals
+  Widget _buildSummaryTab() {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: DatabaseHelper.instance.getInstallmentSummary(),
+      builder: (context, snapshot) {
+        final installmentData = snapshot.data ?? {
+          'total_amount': 0.0,
+          'total_paid': 0.0,
+          'total_remaining': 0.0,
+          'pending_count': 0,
+          'partial_count': 0,
+          'full_paid_count': 0,
+        };
+
+        final regularPending = _pendingPayments.fold<double>(0, (sum, p) => sum + p.amount);
+        final regularCollected = _completedPayments.fold<double>(0, (sum, p) => sum + p.amount);
+        
+        final installmentTotal = (installmentData['total_amount'] as num?)?.toDouble() ?? 0.0;
+        final installmentPaid = (installmentData['total_paid'] as num?)?.toDouble() ?? 0.0;
+        final installmentRemaining = (installmentData['total_remaining'] as num?)?.toDouble() ?? 0.0;
+
+        final grandTotal = regularPending + regularCollected + installmentTotal;
+        final grandCollected = regularCollected + installmentPaid;
+        final grandPending = regularPending + installmentRemaining;
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Grand Totals
+              const Text(
+                '📊 Overall Summary',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildSummaryCard(
+                      'Total Revenue',
+                      '₹${grandTotal.toStringAsFixed(0)}',
+                      Icons.account_balance_wallet,
+                      const Color(0xFF6B21A8),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildSummaryCard(
+                      'Collected',
+                      '₹${grandCollected.toStringAsFixed(0)}',
+                      Icons.check_circle,
+                      const Color(0xFF10B981),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildSummaryCard(
+                      'Pending',
+                      '₹${grandPending.toStringAsFixed(0)}',
+                      Icons.pending,
+                      const Color(0xFFEF4444),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              
+              // Regular Payments Section
+              Card(
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.payment, color: Color(0xFF6B21A8)),
+                          SizedBox(width: 8),
+                          Text(
+                            'Regular Payments',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const Divider(),
+                      _buildSummaryRow('Pending', _pendingPayments.length, regularPending, Colors.orange),
+                      _buildSummaryRow('Completed', _completedPayments.length, regularCollected, Colors.green),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Installment Payments Section
+              Card(
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.receipt_long, color: Color(0xFF6B21A8)),
+                          SizedBox(width: 8),
+                          Text(
+                            'Installment Payments',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const Divider(),
+                      _buildSummaryRow('Pending Bills', installmentData['pending_count'] ?? 0, 0, Colors.red),
+                      _buildSummaryRow('Partial Paid', installmentData['partial_count'] ?? 0, 0, Colors.orange),
+                      _buildSummaryRow('Full Paid', installmentData['full_paid_count'] ?? 0, 0, Colors.green),
+                      const Divider(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Total Collected:', style: TextStyle(fontWeight: FontWeight.bold)),
+                          Text(
+                            '₹${installmentPaid.toStringAsFixed(0)}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Remaining:', style: TextStyle(fontWeight: FontWeight.bold)),
+                          Text(
+                            '₹${installmentRemaining.toStringAsFixed(0)}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSummaryRow(String label, int count, double amount, Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label)),
+          Text(
+            '$count',
+            style: TextStyle(fontWeight: FontWeight.bold, color: color),
+          ),
+          if (amount > 0) ...[
+            const SizedBox(width: 16),
+            Text(
+              '₹${amount.toStringAsFixed(0)}',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // Installments Tab - Full installment management
+  Widget _buildInstallmentsTab() {
+    return PaymentInstallmentScreen(
+      isStaff: widget.isStaff,
+      userName: widget.isStaff ? 'Staff' : 'Doctor',
+      embedded: true,
+    );
+  }
+
   Widget _buildAllPaymentsTab() {
     return Column(
       children: [
-        if (!widget.isStaff) _buildPaymentSummaryCards(),
         Expanded(
           child: _allPayments.isEmpty
               ? const Center(child: Text('No payments found'))

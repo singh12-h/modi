@@ -300,7 +300,7 @@ class _PatientDetailViewState extends State<PatientDetailView> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: statusColor.shade700,
+                            color: statusColor,
                           ),
                         ),
                         Text(

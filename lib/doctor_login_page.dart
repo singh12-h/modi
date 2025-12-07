@@ -5,6 +5,8 @@ import 'doctor_dashboard.dart';
 import 'staff_login_page.dart';
 import 'database_helper.dart';
 import 'models.dart';
+import 'doctor_registration_page.dart';
+import 'forgot_password_page.dart';
 
 class DoctorLoginPage extends StatefulWidget {
   const DoctorLoginPage({super.key});
@@ -141,6 +143,40 @@ class _DoctorLoginPageState extends State<DoctorLoginPage> {
                       const SizedBox(height: 32),
                       _buildLoginButton(),
                       const SizedBox(height: 16),
+                      // Create Account Button
+                      Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: const Color(0xFF003366), width: 2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (context) => const DoctorRegistrationPage()),
+                            );
+                          },
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.person_add, color: Color(0xFF003366), size: 20),
+                              SizedBox(width: 8),
+                              Text(
+                                'Create New Account',
+                                style: TextStyle(
+                                  color: Color(0xFF003366),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       TextButton(
                         onPressed: () {
                           Navigator.of(context).pushReplacement(
@@ -222,7 +258,9 @@ class _DoctorLoginPageState extends State<DoctorLoginPage> {
         ),
         TextButton(
           onPressed: () {
-            Navigator.of(context).pushNamed('/password-reset');
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
+            );
           },
           child: const Text(
             'Forgot Password?',

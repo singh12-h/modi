@@ -8,6 +8,8 @@ import 'doctor_login_page.dart';
 import 'patient_qr_code.dart';
 import 'waiting_room_display.dart';
 import 'password_reset_tool.dart';
+import 'doctor_registration_page.dart';
+import 'forgot_password_page.dart';
 
 void main() {
   print('========== APP STARTING ==========');
@@ -42,6 +44,8 @@ class MyApp extends StatelessWidget {
         '/patient-qr': (context) => const PatientQrCode(),
         '/waiting-room-display': (context) => const WaitingRoomDisplay(),
         '/password-reset': (context) => const PasswordResetTool(),
+        '/doctor-register': (context) => const DoctorRegistrationPage(),
+        '/forgot-password': (context) => const ForgotPasswordPage(),
       },
     );
   }

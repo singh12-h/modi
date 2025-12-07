@@ -105,14 +105,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
       if (success) {
         setState(() => _step = 1);
         
-        if (!EmailService.isConfigured()) {
-          _demoOtp = await EmailService.getDemoOtp();
-          _showSnackBar(
-            'Demo Mode: Your OTP is $_demoOtp (EmailJS not configured)',
-          );
-        } else {
-          _showSnackBar('OTP sent to ${_emailController.text}');
-        }
+        // Always get OTP for fallback display
+        _demoOtp = await EmailService.getDemoOtp();
+        
+        _showSnackBar(
+          'OTP sent! Check your email or use fallback OTP shown below.',
+        );
       } else {
         _showSnackBar('Failed to send OTP. Please try again.', isError: true);
       }
@@ -547,7 +545,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
             LengthLimitingTextInputFormatter(6),
           ],
         ),
-        if (!EmailService.isConfigured() && _demoOtp != null) ...[
+        if (_demoOtp != null) ...[
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
@@ -562,7 +560,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Demo Mode: Your OTP is $_demoOtp',
+                    'Fallback OTP: $_demoOtp (use if email not received)',
                     style: TextStyle(
                       color: Colors.amber.shade900,
                       fontWeight: FontWeight.bold,

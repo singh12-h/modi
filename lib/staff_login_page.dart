@@ -310,9 +310,20 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
             );
 
             if (staff != null) {
+              // Get parent doctor for this staff
+              Staff? parentDoctor;
+              if (staff.doctorId != null) {
+                parentDoctor = await DatabaseHelper.instance.getStaffById(staff.doctorId!);
+              }
+              
               if (mounted) {
                 Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => const StaffDashboard()),
+                  MaterialPageRoute(
+                    builder: (context) => StaffDashboard(
+                      loggedInStaff: staff,
+                      parentDoctor: parentDoctor,
+                    ),
+                  ),
                 );
               }
             } else {

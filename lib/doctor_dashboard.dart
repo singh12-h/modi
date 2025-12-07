@@ -69,7 +69,9 @@ class Responsive extends StatelessWidget {
 }
 
 class DoctorDashboard extends StatefulWidget {
-  const DoctorDashboard({super.key});
+  final Staff? loggedInDoctor;
+  
+  const DoctorDashboard({super.key, this.loggedInDoctor});
 
   @override
   State<DoctorDashboard> createState() => _DoctorDashboardState();
@@ -84,7 +86,12 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
   List<Patient> patients = [];
   int _notificationCount = 0;
   int _followUpCount = 0;
-
+  
+  // Getter for doctor info
+  Staff? get loggedInDoctor => widget.loggedInDoctor;
+  String get clinicName => loggedInDoctor?.clinicName ?? 'MODI Clinic';
+  String get doctorName => loggedInDoctor?.name ?? 'Doctor';
+  String get specialty => loggedInDoctor?.specialty ?? 'General Medicine';
 
 
   final List<MenuItem> _menuItems = [
@@ -332,51 +339,80 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
   }
 
   Widget _buildMobileLayout() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF6B21A8),
-            const Color(0xFF0EA5E9),
-            const Color(0xFF06B6D4),
-          ],
+    return Stack(
+      children: [
+        // Premium Dark Gradient Background
+        Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF0F0F23), // Very Dark Navy
+                Color(0xFF1A1A3E), // Dark Purple Navy
+                Color(0xFF0D1B2A), // Deep Dark Blue
+              ],
+            ),
+          ),
         ),
-      ),
-      child: Column(
-        children: [
-          _buildTopBar(),
-          Expanded(
-            child: Container(
-              margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.95),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(height: 12),
-                  _buildStatsCards(),
-                  _buildTabsSection(),
-                  Expanded(
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _buildPatientGrid('Waiting'),
-                        _buildPatientGrid('In Progress'),
-                        _buildPatientGrid('Completed'),
-                      ],
-                    ),
-                  ),
+        // Subtle Purple Glow
+        Positioned(
+          top: -50,
+          right: -50,
+          child: Container(
+            width: 200,
+            height: 200,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  const Color(0xFF6B21A8).withOpacity(0.2),
+                  Colors.transparent,
                 ],
               ),
             ),
           ),
-        ],
-      ),
+        ),
+        // Main Content
+        Column(
+          children: [
+            _buildTopBar(),
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A2E).withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.05),
+                    width: 1,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 12),
+                    _buildStatsCards(),
+                    _buildTabsSection(),
+                    Expanded(
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _buildPatientGrid('Waiting'),
+                          _buildPatientGrid('In Progress'),
+                          _buildPatientGrid('Completed'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
+
 
   // Add this method inside _DoctorDashboardState
   void _navigateToRoute(String? route) {
@@ -432,7 +468,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
         });
         break;
       case 'StaffManagement':
-        page = const StaffManagement();
+        page = StaffManagement(loggedInDoctor: loggedInDoctor);
         break;
       case 'PaymentManagement':
         page = const PaymentManagement();
@@ -460,57 +496,153 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
   }
 
   Widget _buildDesktopLayout() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF6B21A8), // Deep Purple
-            const Color(0xFF0EA5E9), // Electric Blue
-            const Color(0xFF06B6D4), // Cyan
-          ],
-        ),
-      ),
-      child: Row(
-        children: [
-          _buildModernSidebar(),
-          Expanded(
-            child: Column(
-              children: [
-                _buildTopBar(),
-                Expanded(
-                  child: Container(
-                    margin: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.95),
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: Column(
-                      children: [
-                        _buildStatsCards(),
-                        _buildTabsSection(),
-                        Expanded(
-                          child: TabBarView(
-                            controller: _tabController,
-                            children: [
-                              _buildPatientGrid('Waiting'),
-                              _buildPatientGrid('In Progress'),
-                              _buildPatientGrid('Completed'),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+    return Stack(
+      children: [
+        // Premium Dark Gradient Background
+        Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF0F0F23), // Very Dark Navy
+                Color(0xFF1A1A3E), // Dark Purple Navy
+                Color(0xFF0D1B2A), // Deep Dark Blue
+                Color(0xFF1B263B), // Dark Slate
               ],
+              stops: [0.0, 0.3, 0.7, 1.0],
             ),
           ),
-        ],
-      ),
+        ),
+        // Subtle Mesh Gradient Overlay
+        Positioned.fill(
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.topLeft,
+                radius: 1.5,
+                colors: [
+                  const Color(0xFF6B21A8).withOpacity(0.15),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.bottomRight,
+                radius: 1.2,
+                colors: [
+                  const Color(0xFF0EA5E9).withOpacity(0.1),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Decorative Circles
+        Positioned(
+          top: -100,
+          right: -100,
+          child: Container(
+            width: 300,
+            height: 300,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  const Color(0xFFA855F7).withOpacity(0.1),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: -50,
+          left: -50,
+          child: Container(
+            width: 200,
+            height: 200,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  const Color(0xFF22D3EE).withOpacity(0.08),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Main Content
+        Row(
+          children: [
+            _buildModernSidebar(),
+            Expanded(
+              child: Column(
+                children: [
+                  _buildTopBar(),
+                  Expanded(
+                    child: Container(
+                      margin: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.03),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.08),
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 30,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(24),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1A1A2E).withOpacity(0.7),
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            child: Column(
+                              children: [
+                                _buildStatsCards(),
+                                _buildTabsSection(),
+                                Expanded(
+                                  child: TabBarView(
+                                    controller: _tabController,
+                                    children: [
+                                      _buildPatientGrid('Waiting'),
+                                      _buildPatientGrid('In Progress'),
+                                      _buildPatientGrid('Completed'),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
+
 
   // All the methods from _buildModernSidebar down to the end of the file
   // should be inside the _DoctorDashboardState class.
@@ -917,27 +1049,35 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
                     child: const Icon(Icons.local_hospital_rounded, color: Colors.white, size: 28),
                   ),
                   const SizedBox(width: 16),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'MediCare Pro',
-                          style: TextStyle(
+                          clinicName,
+                          style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 22,
+                            fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
                           overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
-                          'Professional',
-                          style: TextStyle(
+                          'Dr. $doctorName',
+                          style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 12,
                           ),
-                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          specialty,
+                          style: TextStyle(
+                            color: Colors.cyan.shade200,
+                            fontSize: 11,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
@@ -1227,9 +1367,10 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
                       child: const Icon(Icons.local_hospital_rounded, color: Color(0xFF3B82F6), size: 40),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'MediCare Professional',
-                      style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                    Text(
+                      clinicName,
+                      style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
@@ -1281,12 +1422,15 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: Color(0xFF3B82F6),
-                    child: Text('JD', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  leading: CircleAvatar(
+                    backgroundColor: const Color(0xFF3B82F6),
+                    child: Text(
+                      doctorName.isNotEmpty ? doctorName[0].toUpperCase() : 'D', 
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
                   ),
-                  title: const Text('Dr. John Doe', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  subtitle: const Text('Cardiologist', style: TextStyle(color: Colors.white70)),
+                  title: Text('Dr. $doctorName', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: Text(specialty, style: const TextStyle(color: Colors.white70)),
                   trailing: IconButton(
                     icon: const Icon(Icons.logout_rounded, color: Colors.white),
                     onPressed: () {

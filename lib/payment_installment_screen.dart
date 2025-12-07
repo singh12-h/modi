@@ -226,13 +226,39 @@ class _PaymentInstallmentScreenState extends State<PaymentInstallmentScreen> wit
                             color: Colors.grey[600],
                           ),
                         ),
-                        Text(
-                          DateFormat('dd MMM yyyy, hh:mm a')
-                              .format(installment.createdAt),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
+                        Row(
+                          children: [
+                            Text(
+                              DateFormat('dd MMM yyyy, hh:mm a')
+                                  .format(installment.createdAt),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            // Payment For Badge
+                            if (installment.paymentFor != null) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF6B21A8).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(_getPaymentPurposeIcon(installment.paymentFor!), size: 10, color: const Color(0xFF6B21A8)),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      installment.paymentFor!,
+                                      style: const TextStyle(fontSize: 9, color: Color(0xFF6B21A8), fontWeight: FontWeight.w500),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ],
                     ),
@@ -283,6 +309,7 @@ class _PaymentInstallmentScreenState extends State<PaymentInstallmentScreen> wit
                 ),
               ),
               const SizedBox(height: 12),
+
               // Amount Row
               Row(
                 children: [
@@ -372,6 +399,22 @@ class _PaymentInstallmentScreenState extends State<PaymentInstallmentScreen> wit
       ],
     );
   }
+
+  IconData _getPaymentPurposeIcon(String purpose) {
+    switch (purpose) {
+      case 'Consultation': return Icons.medical_services;
+      case 'Follow-up': return Icons.replay;
+      case 'Medicine': return Icons.medication;
+      case 'Procedure': return Icons.healing;
+      case 'Lab Test': return Icons.science;
+      case 'Surgery': return Icons.local_hospital;
+      case 'Physiotherapy': return Icons.accessibility_new;
+      case 'Injection': return Icons.vaccines;
+      case 'Dressing': return Icons.personal_injury;
+      default: return Icons.receipt;
+    }
+  }
+
 
   // Mark entire bill as full paid
   void _markAsFullPaid(PaymentInstallment installment) async {

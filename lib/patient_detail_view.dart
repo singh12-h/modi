@@ -205,43 +205,228 @@ class _PatientDetailViewState extends State<PatientDetailView> {
   }
 
   Future<void> _createManualPayment() async {
-    final amountController = TextEditingController(text: '500');
+    // Load fee settings first
+    final settings = await _db.getPaymentSettings();
+    final doctorFees = settings?['doctorFees'] ?? 500.0;
+    
+    final amountController = TextEditingController(text: doctorFees.toStringAsFixed(0));
+    final otherChargesController = TextEditingController(text: '0');
+    String paymentFor = 'Consultation';
+    bool useInstallment = false;
     
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Payment Record'),
-        content: TextField(
-          controller: amountController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Consultation Fee (₹)'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              if (amountController.text.isNotEmpty && _patient != null) {
-                final payment = Payment(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
-                  patientId: _patient!.id,
-                  patientName: _patient!.name,
-                  token: _patient!.token,
-                  amount: double.tryParse(amountController.text) ?? 500.0,
-                  status: 'pending',
-                  date: DateTime.now(),
-                  notes: 'Manual Entry',
-                );
-                await _db.insertPayment(payment);
-                Navigator.pop(context);
-                _loadPatientData();
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          final consultationFee = double.tryParse(amountController.text) ?? 0.0;
+          final otherCharges = double.tryParse(otherChargesController.text) ?? 0.0;
+          final totalAmount = consultationFee + otherCharges;
+          
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.add_card, color: Color(0xFF6B21A8)),
+                const SizedBox(width: 8),
+                const Text('💳 Add Payment', style: TextStyle(fontSize: 18)),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Payment Purpose Dropdown
+                  const Text('Payment For', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade400),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButtonFormField<String>(
+                      value: paymentFor,
+                      decoration: const InputDecoration(
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        border: InputBorder.none,
+                      ),
+                      items: [
+                        'Consultation',
+                        'Follow-up',
+                        'Medicine',
+                        'Procedure',
+                        'Lab Test',
+                        'Surgery',
+                        'Physiotherapy',
+                        'Injection',
+                        'Dressing',
+                        'Other',
+                      ].map((purpose) => DropdownMenuItem(
+                        value: purpose,
+                        child: Row(
+                          children: [
+                            Icon(_getPaymentPurposeIcon(purpose), size: 18, color: Colors.grey[600]),
+                            const SizedBox(width: 8),
+                            Text(purpose),
+                          ],
+                        ),
+                      )).toList(),
+                      onChanged: (value) => setState(() => paymentFor = value!),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Consultation/Service Fee
+                  TextField(
+                    controller: amountController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: paymentFor == 'Consultation' ? 'Consultation Fee' : '$paymentFor Fee',
+                      prefixText: '₹ ',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.refresh, size: 18),
+                        tooltip: 'Reset to default fee',
+                        onPressed: () {
+                          amountController.text = doctorFees.toStringAsFixed(0);
+                          setState(() {});
+                        },
+                      ),
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Other Charges
+                  TextField(
+                    controller: otherChargesController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Other Charges (Medicine/Instruments)',
+                      prefixText: '₹ ',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Total Amount Display
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6B21A8).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF6B21A8).withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Total Amount:', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(
+                          '₹${totalAmount.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF6B21A8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Installment Option
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: CheckboxListTile(
+                      value: useInstallment,
+                      onChanged: (value) => setState(() => useInstallment = value!),
+                      title: const Text('Enable Installment', style: TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: const Text('Allow partial payments', style: TextStyle(fontSize: 12)),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  if (amountController.text.isNotEmpty && _patient != null) {
+                    final serviceFee = double.tryParse(amountController.text) ?? doctorFees;
+                    final otherCharges = double.tryParse(otherChargesController.text) ?? 0.0;
+                    final total = serviceFee + otherCharges;
+                    
+                    if (useInstallment) {
+                      // Create installment payment
+                      final installment = PaymentInstallment(
+                        id: DateTime.now().millisecondsSinceEpoch.toString(),
+                        patientId: _patient!.id,
+                        patientName: _patient!.name,
+                        totalAmount: total,
+                        serviceCharges: serviceFee,
+                        instrumentCharges: otherCharges,
+                        status: 'PENDING',
+                        paymentFor: paymentFor,
+                      );
+                      await _db.insertPaymentInstallment(installment);
+                    } else {
+                      // Create regular payment
+                      final payment = Payment(
+                        id: DateTime.now().millisecondsSinceEpoch.toString(),
+                        patientId: _patient!.id,
+                        patientName: _patient!.name,
+                        token: _patient!.token,
+                        amount: total,
+                        status: 'pending',
+                        date: DateTime.now(),
+                        notes: '$paymentFor${otherCharges > 0 ? " + Other Charges" : ""}',
+                      );
+                      await _db.insertPayment(payment);
+                    }
+                    Navigator.pop(context);
+                    _loadPatientData();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('✅ Payment added: ₹${total.toStringAsFixed(0)} for $paymentFor'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.save),
+                label: const Text('Add Payment'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6B21A8),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
+
+  IconData _getPaymentPurposeIcon(String purpose) {
+    switch (purpose) {
+      case 'Consultation': return Icons.medical_services;
+      case 'Follow-up': return Icons.replay;
+      case 'Medicine': return Icons.medication;
+      case 'Procedure': return Icons.healing;
+      case 'Lab Test': return Icons.science;
+      case 'Surgery': return Icons.local_hospital;
+      case 'Physiotherapy': return Icons.accessibility_new;
+      case 'Injection': return Icons.vaccines;
+      case 'Dressing': return Icons.personal_injury;
+      default: return Icons.receipt;
+    }
+  }
+
 
   Widget _buildPaymentStatus() {
     // Check for installment payments first
@@ -303,9 +488,34 @@ class _PatientDetailViewState extends State<PatientDetailView> {
                             color: statusColor,
                           ),
                         ),
-                        Text(
-                          'Total: ₹${installment.totalAmount.toStringAsFixed(0)}',
-                          style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                        Row(
+                          children: [
+                            Text(
+                              'Total: ₹${installment.totalAmount.toStringAsFixed(0)}',
+                              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                            ),
+                            if (installment.paymentFor != null) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF6B21A8).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(_getPaymentPurposeIcon(installment.paymentFor!), size: 12, color: const Color(0xFF6B21A8)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      installment.paymentFor!,
+                                      style: const TextStyle(fontSize: 11, color: Color(0xFF6B21A8), fontWeight: FontWeight.w500),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ],
                     ),
@@ -337,6 +547,7 @@ class _PatientDetailViewState extends State<PatientDetailView> {
               ),
               // Action Buttons
               if (!isFullPaid) ...[
+
                 const SizedBox(height: 10),
                 Row(
                   children: [
@@ -368,11 +579,27 @@ class _PatientDetailViewState extends State<PatientDetailView> {
                   ],
                 ),
               ],
+              // View Transaction History Button
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _showPaymentAccountDialog(installment),
+                  icon: const Icon(Icons.history, size: 16),
+                  label: const Text('View All Transactions'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF6B21A8),
+                    side: const BorderSide(color: Color(0xFF6B21A8)),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
       );
     }
+
 
     // Fallback to regular payment display
     Payment? displayPayment;
@@ -493,6 +720,293 @@ class _PatientDetailViewState extends State<PatientDetailView> {
         ),
       ],
     );
+  }
+
+  // Show Payment Account Dialog - All transactions with account-style view
+  Future<void> _showPaymentAccountDialog(PaymentInstallment installment) async {
+    // Load all transactions for this installment
+    final transactions = await _db.getPaymentTransactions(installment.id);
+    
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.9,
+          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF6B21A8),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.account_balance_wallet, color: Colors.white, size: 24),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                installment.patientName,
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
+                              Text(
+                                'Payment Account',
+                                style: TextStyle(fontSize: 13, color: Colors.white.withOpacity(0.8)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Bill Summary Row
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildAccountSummaryItem('Total Bill', '₹${installment.totalAmount.toStringAsFixed(0)}', Colors.white),
+                          Container(width: 1, height: 30, color: Colors.white.withOpacity(0.3)),
+                          _buildAccountSummaryItem('Paid', '₹${installment.paidAmount.toStringAsFixed(0)}', Colors.greenAccent),
+                          Container(width: 1, height: 30, color: Colors.white.withOpacity(0.3)),
+                          _buildAccountSummaryItem('Due', '₹${installment.remainingAmount.toStringAsFixed(0)}', Colors.redAccent),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Transactions List
+              Flexible(
+                child: transactions.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.receipt_long, size: 60, color: Colors.grey[300]),
+                            const SizedBox(height: 12),
+                            Text('No transactions yet', style: TextStyle(color: Colors.grey[600], fontSize: 16)),
+                            const SizedBox(height: 8),
+                            Text('Payment history will appear here', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(12),
+                        shrinkWrap: true,
+                        itemCount: transactions.length,
+                        itemBuilder: (context, index) {
+                          final txn = transactions[index];
+                          return _buildTransactionItem(txn, index + 1);
+                        },
+                      ),
+              ),
+              
+              // Footer with details
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                  border: Border(top: BorderSide(color: Colors.grey[200]!)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(_getPaymentPurposeIcon(installment.paymentFor ?? 'Consultation'), size: 14, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            '${installment.paymentFor ?? 'Consultation'} • ${DateFormat('dd MMM yy').format(installment.createdAt)}',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Status Badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: installment.status == 'FULL_PAID' 
+                            ? Colors.green.withOpacity(0.1) 
+                            : Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: installment.status == 'FULL_PAID' ? Colors.green : Colors.orange,
+                        ),
+                      ),
+                      child: Text(
+                        installment.status == 'FULL_PAID' 
+                            ? '✓ Account Settled' 
+                            : 'Due: ₹${installment.remainingAmount.toStringAsFixed(0)}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: installment.status == 'FULL_PAID' ? Colors.green : Colors.orange,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAccountSummaryItem(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(label, style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.7))),
+        const SizedBox(height: 2),
+        Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+      ],
+    );
+  }
+
+  Widget _buildTransactionItem(PaymentTransaction txn, int index) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Transaction Number Circle
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFF6B21A8).withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                '#$index',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF6B21A8),
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Transaction Details
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      DateFormat('dd MMM yyyy').format(txn.paymentDate),
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _getPaymentModeColor(txn.paymentMode).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        txn.paymentMode,
+                        style: TextStyle(fontSize: 10, color: _getPaymentModeColor(txn.paymentMode), fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Receipt: ${txn.receiptNumber}',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                ),
+                if (txn.notes != null && txn.notes!.isNotEmpty)
+                  Text(
+                    txn.notes!,
+                    style: TextStyle(fontSize: 11, color: Colors.grey[600], fontStyle: FontStyle.italic),
+                  ),
+              ],
+            ),
+          ),
+          // Amount
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '+₹${txn.amountPaid.toStringAsFixed(0)}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
+                ),
+              ),
+              Text(
+                DateFormat('hh:mm a').format(txn.paymentDate),
+                style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getPaymentModeColor(String mode) {
+    switch (mode.toLowerCase()) {
+      case 'cash': return Colors.green;
+      case 'upi': return Colors.blue;
+      case 'card': return Colors.orange;
+      case 'cheque': return Colors.purple;
+      default: return Colors.grey;
+    }
   }
 
   // Add payment to installment
@@ -651,8 +1165,13 @@ class _PatientDetailViewState extends State<PatientDetailView> {
 
   // Edit installment bill
   Future<void> _showEditInstallmentDialog(PaymentInstallment installment) async {
+    // Load fee settings
+    final settings = await _db.getPaymentSettings();
+    final doctorFees = settings?['doctorFees'] ?? 500.0;
+    
     final consultationController = TextEditingController(text: installment.serviceCharges.toStringAsFixed(0));
     final otherController = TextEditingController(text: installment.instrumentCharges.toStringAsFixed(0));
+    String paymentFor = installment.paymentFor ?? 'Consultation';
 
     final result = await showDialog<bool>(
       context: context,
@@ -668,13 +1187,15 @@ class _PatientDetailViewState extends State<PatientDetailView> {
               children: [
                 const Icon(Icons.edit, color: Color(0xFF6B21A8)),
                 const SizedBox(width: 8),
-                const Expanded(child: Text('Edit Bill', style: TextStyle(fontSize: 16))),
+                const Expanded(child: Text('✏️ Edit Bill', style: TextStyle(fontSize: 16))),
               ],
             ),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Already Paid Warning
                   if (installment.paidAmount > 0)
                     Container(
                       padding: const EdgeInsets.all(10),
@@ -684,26 +1205,86 @@ class _PatientDetailViewState extends State<PatientDetailView> {
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: Colors.orange),
                       ),
-                      child: Text(
-                        'Already Paid: ₹${installment.paidAmount.toStringAsFixed(0)}\nNew total must be ≥ paid amount',
-                        style: const TextStyle(fontSize: 12),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline, color: Colors.orange, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Already Paid: ₹${installment.paidAmount.toStringAsFixed(0)}\nNew total must be ≥ paid amount',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                  
+                  // Payment Purpose Dropdown
+                  const Text('Payment For', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade400),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButtonFormField<String>(
+                      value: paymentFor,
+                      decoration: const InputDecoration(
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        border: InputBorder.none,
+                      ),
+                      items: [
+                        'Consultation',
+                        'Follow-up',
+                        'Medicine',
+                        'Procedure',
+                        'Lab Test',
+                        'Surgery',
+                        'Physiotherapy',
+                        'Injection',
+                        'Dressing',
+                        'Other',
+                      ].map((purpose) => DropdownMenuItem(
+                        value: purpose,
+                        child: Row(
+                          children: [
+                            Icon(_getPaymentPurposeIcon(purpose), size: 18, color: Colors.grey[600]),
+                            const SizedBox(width: 8),
+                            Text(purpose),
+                          ],
+                        ),
+                      )).toList(),
+                      onChanged: (value) => setState(() => paymentFor = value!),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Service/Consultation Fee
                   TextField(
                     controller: consultationController,
-                    decoration: const InputDecoration(
-                      labelText: 'Consultation Fees',
+                    decoration: InputDecoration(
+                      labelText: paymentFor == 'Consultation' ? 'Consultation Fees' : '$paymentFor Fees',
                       prefixText: '₹ ',
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.refresh, size: 18),
+                        tooltip: 'Reset to default fee (₹${doctorFees.toStringAsFixed(0)})',
+                        onPressed: () {
+                          consultationController.text = doctorFees.toStringAsFixed(0);
+                          setState(() {});
+                        },
+                      ),
                     ),
                     keyboardType: TextInputType.number,
                     onChanged: (_) => setState(() {}),
                   ),
                   const SizedBox(height: 12),
+                  
+                  // Other Charges
                   TextField(
                     controller: otherController,
                     decoration: const InputDecoration(
-                      labelText: 'Other Charges',
+                      labelText: 'Other Charges (Medicine/Instruments)',
                       prefixText: '₹ ',
                       border: OutlineInputBorder(),
                     ),
@@ -711,6 +1292,8 @@ class _PatientDetailViewState extends State<PatientDetailView> {
                     onChanged: (_) => setState(() {}),
                   ),
                   const SizedBox(height: 16),
+                  
+                  // Summary Box
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -731,6 +1314,17 @@ class _PatientDetailViewState extends State<PatientDetailView> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
+                              const Text('Already Paid:'),
+                              Text(
+                                '₹${installment.paidAmount.toStringAsFixed(0)}',
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
                               const Text('New Remaining:'),
                               Text(
                                 '₹${newRemaining.toStringAsFixed(0)}',
@@ -742,12 +1336,49 @@ class _PatientDetailViewState extends State<PatientDetailView> {
                       ],
                     ),
                   ),
+                  
+                  // Delete Bill Option
+                  if (installment.paidAmount == 0) ...[
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('🗑️ Delete Bill?'),
+                            content: const Text('This will permanently delete this payment record.'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                              ElevatedButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          await _db.deletePaymentInstallment(installment.id);
+                          Navigator.pop(context, false);
+                          _loadPatientData();
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            const SnackBar(content: Text('🗑️ Bill deleted'), backgroundColor: Colors.red),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.delete, color: Colors.red, size: 18),
+                      label: const Text('Delete Bill', style: TextStyle(color: Colors.red)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.red),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
             actions: [
               TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-              ElevatedButton(
+              ElevatedButton.icon(
                 onPressed: () {
                   if (newTotal <= 0) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -763,8 +1394,9 @@ class _PatientDetailViewState extends State<PatientDetailView> {
                   }
                   Navigator.pop(context, true);
                 },
+                icon: const Icon(Icons.save),
+                label: const Text('Save'),
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6B21A8), foregroundColor: Colors.white),
-                child: const Text('Save'),
               ),
             ],
           );
@@ -790,6 +1422,7 @@ class _PatientDetailViewState extends State<PatientDetailView> {
         status: newRemaining <= 0 ? 'FULL_PAID' : installment.status,
         createdAt: installment.createdAt,
         appointmentId: installment.appointmentId,
+        paymentFor: paymentFor,
       );
 
       await _db.updatePaymentInstallment(updatedInstallment);
@@ -797,11 +1430,12 @@ class _PatientDetailViewState extends State<PatientDetailView> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✅ Bill updated: ₹${newTotal.toStringAsFixed(0)}'), backgroundColor: Colors.green),
+          SnackBar(content: Text('✅ Bill updated: ₹${newTotal.toStringAsFixed(0)} for $paymentFor'), backgroundColor: Colors.green),
         );
       }
     }
   }
+
 
   Widget _buildCompactHeader() {
     return Container(

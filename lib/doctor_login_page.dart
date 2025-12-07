@@ -294,7 +294,7 @@ class _DoctorLoginPageState extends State<DoctorLoginPage> {
             if (staff != null && staff.role == 'doctor') {
               if (mounted) {
                 Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => const DoctorDashboard()),
+                  MaterialPageRoute(builder: (context) => DoctorDashboard(loggedInDoctor: staff)),
                 );
               }
             } else {

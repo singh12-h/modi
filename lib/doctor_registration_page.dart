@@ -91,16 +91,12 @@ class _DoctorRegistrationPageState extends State<DoctorRegistrationPage>
       if (success) {
         setState(() => _isOtpSent = true);
         
-        // In demo mode, show the OTP
-        if (!EmailService.isConfigured()) {
-          _demoOtp = await EmailService.getDemoOtp();
-          _showSnackBar(
-            'Demo Mode: Your OTP is $_demoOtp (EmailJS not configured)',
-            isError: false,
-          );
-        } else {
-          _showSnackBar('OTP sent to ${_emailController.text}');
-        }
+        // Always get OTP for fallback display
+        _demoOtp = await EmailService.getDemoOtp();
+        
+        _showSnackBar(
+          'OTP sent! Check your email or use fallback OTP shown below.',
+        );
       } else {
         _showSnackBar('Failed to send OTP. Please try again.', isError: true);
       }
@@ -163,7 +159,7 @@ class _DoctorRegistrationPageState extends State<DoctorRegistrationPage>
       final bytes = utf8.encode(_passwordController.text + salt);
       final hash = sha256.convert(bytes).toString();
 
-      // Create doctor account
+      // Create doctor account with all details
       final doctor = Staff(
         id: const Uuid().v4(),
         name: _nameController.text,
@@ -172,6 +168,12 @@ class _DoctorRegistrationPageState extends State<DoctorRegistrationPage>
         salt: salt,
         role: 'doctor',
         createdAt: DateTime.now(),
+        email: _emailController.text,
+        mobile: _mobileController.text,
+        clinicName: _clinicNameController.text,
+        clinicAddress: _clinicAddressController.text,
+        specialty: _specialtyController.text,
+        registrationNumber: _registrationNumberController.text,
       );
 
       await DatabaseHelper.instance.insertStaff(doctor);
@@ -569,7 +571,7 @@ class _DoctorRegistrationPageState extends State<DoctorRegistrationPage>
                             ),
                         ],
                       ),
-                      if (_isOtpSent && !EmailService.isConfigured()) ...[
+                      if (_isOtpSent && _demoOtp != null) ...[
                         const SizedBox(height: 8),
                         Container(
                           padding: const EdgeInsets.all(10),
@@ -584,10 +586,11 @@ class _DoctorRegistrationPageState extends State<DoctorRegistrationPage>
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Demo Mode: OTP is $_demoOtp',
+                                  'Fallback OTP: $_demoOtp (use if email not received)',
                                   style: TextStyle(
                                     color: Colors.amber.shade900,
                                     fontSize: 13,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),

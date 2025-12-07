@@ -21,9 +21,14 @@ import 'lab_reports_management.dart';
 import 'patient_feedback_system.dart';
 import 'doctor_schedule_calendar.dart';
 import 'settings_configuration.dart';
+import 'models.dart';
+import 'login_selection_page.dart';
 
 class StaffDashboard extends StatefulWidget {
-  const StaffDashboard({super.key});
+  final Staff? loggedInStaff;
+  final Staff? parentDoctor;
+  
+  const StaffDashboard({super.key, this.loggedInStaff, this.parentDoctor});
 
   @override
   State<StaffDashboard> createState() => _StaffDashboardState();
@@ -31,6 +36,12 @@ class StaffDashboard extends StatefulWidget {
 
 class _StaffDashboardState extends State<StaffDashboard> {
   int _selectedIndex = 0;
+  
+  Staff? get loggedInStaff => widget.loggedInStaff;
+  Staff? get parentDoctor => widget.parentDoctor;
+  String get clinicName => parentDoctor?.clinicName ?? loggedInStaff?.clinicName ?? 'Clinic';
+  String get staffName => loggedInStaff?.name ?? 'Staff';
+  String get doctorName => parentDoctor?.name ?? 'Doctor';
 
   final List<Widget> _pages = [
     const OPDStaffDashboard(),
@@ -93,16 +104,47 @@ class _StaffDashboardState extends State<StaffDashboard> {
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(
-                color: Colors.teal,
-              ),
-              child: Text(
-                'Staff Dashboard',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
+            DrawerHeader(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
                 ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.white,
+                    child: Text(
+                      staffName.isNotEmpty ? staffName[0].toUpperCase() : 'S',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF3B82F6),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    staffName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    clinicName,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
             ),
             ListTile(

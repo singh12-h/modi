@@ -4,10 +4,11 @@ import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import 'database_helper.dart';
 import 'models.dart';
-import 'glassmorphism.dart';
 
 class StaffManagement extends StatefulWidget {
-  const StaffManagement({super.key});
+  final Staff? loggedInDoctor;
+  
+  const StaffManagement({super.key, this.loggedInDoctor});
 
   @override
   State<StaffManagement> createState() => _StaffManagementState();
@@ -16,6 +17,10 @@ class StaffManagement extends StatefulWidget {
 class _StaffManagementState extends State<StaffManagement> {
   List<Staff> _staffList = [];
   bool _isLoading = true;
+  
+  Staff? get loggedInDoctor => widget.loggedInDoctor;
+  String get doctorId => loggedInDoctor?.id ?? '';
+  String get clinicName => loggedInDoctor?.clinicName ?? 'Clinic';
 
   @override
   void initState() {
@@ -25,7 +30,16 @@ class _StaffManagementState extends State<StaffManagement> {
 
   Future<void> _loadStaff() async {
     setState(() => _isLoading = true);
-    final staff = await DatabaseHelper.instance.getAllStaff();
+    
+    List<Staff> staff;
+    if (doctorId.isNotEmpty) {
+      // Load only this doctor's staff
+      staff = await DatabaseHelper.instance.getStaffByDoctorId(doctorId);
+    } else {
+      // Fallback: load all staff (for admin or legacy)
+      staff = await DatabaseHelper.instance.getAllStaff();
+    }
+    
     setState(() {
       _staffList = staff;
       _isLoading = false;
@@ -35,8 +49,9 @@ class _StaffManagementState extends State<StaffManagement> {
   Future<void> _showAddEditDialog([Staff? staff]) async {
     final nameController = TextEditingController(text: staff?.name);
     final usernameController = TextEditingController(text: staff?.username);
+    final emailController = TextEditingController(text: staff?.email);
+    final mobileController = TextEditingController(text: staff?.mobile);
     final passwordController = TextEditingController();
-    String role = staff?.role ?? 'staff';
     final formKey = GlobalKey<FormState>();
     bool obscurePassword = true;
 
@@ -44,39 +59,95 @@ class _StaffManagementState extends State<StaffManagement> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: Text(staff == null ? 'Add Staff' : 'Edit Staff'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(
+                staff == null ? Icons.person_add : Icons.edit,
+                color: Colors.teal,
+              ),
+              const SizedBox(width: 10),
+              Text(staff == null ? 'Add Staff Member' : 'Edit Staff'),
+            ],
+          ),
           content: Form(
             key: formKey,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Clinic info banner
+                  if (loggedInDoctor != null)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.teal.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.teal.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.local_hospital, color: Colors.teal.shade700),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Staff for: $clinicName',
+                              style: TextStyle(
+                                color: Colors.teal.shade900,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   TextFormField(
                     controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Name'),
-                    validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
+                    decoration: const InputDecoration(
+                      labelText: 'Staff Name',
+                      prefixIcon: Icon(Icons.person),
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) => value?.isEmpty ?? true ? 'Name is required' : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: usernameController,
-                    decoration: const InputDecoration(labelText: 'Username'),
-                    validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
+                    decoration: const InputDecoration(
+                      labelText: 'Username',
+                      prefixIcon: Icon(Icons.account_circle),
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) => value?.isEmpty ?? true ? 'Username is required' : null,
                   ),
                   const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: role,
-                    decoration: const InputDecoration(labelText: 'Role'),
-                    items: const [
-                      DropdownMenuItem(value: 'staff', child: Text('Staff')),
-                      DropdownMenuItem(value: 'doctor', child: Text('Doctor')),
-                    ],
-                    onChanged: (value) => setState(() => role = value!),
+                  TextFormField(
+                    controller: emailController,
+                    decoration: const InputDecoration(
+                      labelText: 'Email (Optional)',
+                      prefixIcon: Icon(Icons.email),
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: mobileController,
+                    decoration: const InputDecoration(
+                      labelText: 'Mobile (Optional)',
+                      prefixIcon: Icon(Icons.phone),
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.phone,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: passwordController,
                     decoration: InputDecoration(
                       labelText: staff == null ? 'Password' : 'New Password (Optional)',
+                      prefixIcon: const Icon(Icons.lock),
+                      border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
                         icon: Icon(obscurePassword ? Icons.visibility : Icons.visibility_off),
                         onPressed: () => setState(() => obscurePassword = !obscurePassword),
@@ -102,7 +173,13 @@ class _StaffManagementState extends State<StaffManagement> {
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancel'),
             ),
-            ElevatedButton(
+            ElevatedButton.icon(
+              icon: const Icon(Icons.save),
+              label: const Text('Save'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal,
+                foregroundColor: Colors.white,
+              ),
               onPressed: () async {
                 if (formKey.currentState?.validate() ?? false) {
                   try {
@@ -110,8 +187,7 @@ class _StaffManagementState extends State<StaffManagement> {
                     String salt = staff?.salt ?? const Uuid().v4();
 
                     if (passwordController.text.isNotEmpty) {
-                      // Generate new salt and hash whenever password is changed
-                      salt = const Uuid().v4(); // Always generate new salt when password changes
+                      salt = const Uuid().v4();
                       final bytes = utf8.encode(passwordController.text + salt);
                       passwordHash = sha256.convert(bytes).toString();
                     }
@@ -122,8 +198,12 @@ class _StaffManagementState extends State<StaffManagement> {
                       username: usernameController.text,
                       passwordHash: passwordHash,
                       salt: salt,
-                      role: role,
+                      role: 'staff', // Always staff when created by doctor
                       createdAt: staff?.createdAt,
+                      email: emailController.text.isNotEmpty ? emailController.text : null,
+                      mobile: mobileController.text.isNotEmpty ? mobileController.text : null,
+                      doctorId: doctorId, // Link to parent doctor
+                      clinicName: clinicName, // Inherit clinic name
                     );
 
                     if (staff == null) {
@@ -132,14 +212,33 @@ class _StaffManagementState extends State<StaffManagement> {
                       if (existing != null) {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Username already exists')),
+                            const SnackBar(
+                              content: Text('Username already exists! Please choose another.'),
+                              backgroundColor: Colors.red,
+                            ),
                           );
                         }
                         return;
                       }
                       await DatabaseHelper.instance.insertStaff(newStaff);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('${newStaff.name} added successfully!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
                     } else {
                       await DatabaseHelper.instance.updateStaff(newStaff);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('${newStaff.name} updated successfully!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
                     }
 
                     if (mounted) Navigator.pop(context);
@@ -147,13 +246,12 @@ class _StaffManagementState extends State<StaffManagement> {
                   } catch (e) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: $e')),
+                        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
                       );
                     }
                   }
                 }
               },
-              child: const Text('Save'),
             ),
           ],
         ),
@@ -165,17 +263,39 @@ class _StaffManagementState extends State<StaffManagement> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Staff'),
-        content: Text('Are you sure you want to delete ${staff.name}?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning, color: Colors.red),
+            SizedBox(width: 10),
+            Text('Delete Staff'),
+          ],
+        ),
+        content: Text('Are you sure you want to delete ${staff.name}?\n\nThis action cannot be undone.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false), 
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true), 
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
         ],
       ),
     );
 
     if (confirm == true) {
       await DatabaseHelper.instance.deleteStaff(staff.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${staff.name} deleted'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       _loadStaff();
     }
   }
@@ -184,55 +304,113 @@ class _StaffManagementState extends State<StaffManagement> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Staff Management'),
-        backgroundColor: Colors.white,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Staff Management'),
+            if (loggedInDoctor != null)
+              Text(
+                clinicName,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+              ),
+          ],
+        ),
+        backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-        titleTextStyle: const TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.bold),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _staffList.length,
-              itemBuilder: (context, index) {
-                final staff = _staffList[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 2,
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: staff.role == 'doctor' ? Colors.teal.withAlpha(51) : Colors.purple.withAlpha(51),
-                      child: Icon(
-                        staff.role == 'doctor' ? Icons.medical_services : Icons.person,
-                        color: staff.role == 'doctor' ? Colors.teal : Colors.purple,
-                      ),
-                    ),
-                    title: Text(staff.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('@${staff.username} • ${staff.role.toUpperCase()}'),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.teal.shade50,
+              Colors.white,
+            ],
+          ),
+        ),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _staffList.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.blue),
-                          onPressed: () => _showAddEditDialog(staff),
+                        Icon(Icons.people_outline, size: 80, color: Colors.grey.shade400),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No staff members yet',
+                          style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
                         ),
-                        if (staff.username != 'admin') // Prevent deleting default admin
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteStaff(staff),
-                          ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Tap + to add your first staff member',
+                          style: TextStyle(color: Colors.grey),
+                        ),
                       ],
                     ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _staffList.length,
+                    itemBuilder: (context, index) {
+                      final staff = _staffList[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 3,
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          leading: CircleAvatar(
+                            radius: 28,
+                            backgroundColor: Colors.teal.shade100,
+                            child: Text(
+                              staff.name.isNotEmpty ? staff.name[0].toUpperCase() : 'S',
+                              style: TextStyle(
+                                color: Colors.teal.shade700,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          title: Text(
+                            staff.name, 
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('@${staff.username}'),
+                              if (staff.email != null)
+                                Text(staff.email!, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                              if (staff.mobile != null)
+                                Text(staff.mobile!, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                            ],
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit, color: Colors.blue),
+                                onPressed: () => _showAddEditDialog(staff),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => _deleteStaff(staff),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
-      floatingActionButton: FloatingActionButton(
+      ),
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddEditDialog(),
         backgroundColor: Colors.teal,
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.person_add),
+        label: const Text('Add Staff'),
       ),
     );
   }

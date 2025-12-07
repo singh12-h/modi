@@ -12,6 +12,17 @@ class Staff {
   final String salt;
   final String role; // 'doctor' or 'staff'
   final DateTime createdAt;
+  
+  // Extended fields for Doctor profile
+  final String? email;
+  final String? mobile;
+  final String? clinicName;
+  final String? clinicAddress;
+  final String? specialty;
+  final String? registrationNumber;
+  
+  // For Staff: Link to parent Doctor (multi-clinic support)
+  final String? doctorId; // ID of the doctor who created this staff
 
   Staff({
     required this.id,
@@ -21,6 +32,13 @@ class Staff {
     required this.salt,
     required this.role,
     DateTime? createdAt,
+    this.email,
+    this.mobile,
+    this.clinicName,
+    this.clinicAddress,
+    this.specialty,
+    this.registrationNumber,
+    this.doctorId,
   }) : createdAt = createdAt ?? DateTime.now();
 
   Map<String, dynamic> toMap() {
@@ -32,6 +50,13 @@ class Staff {
       'salt': salt,
       'role': role,
       'created_at': createdAt.toIso8601String(),
+      'email': email,
+      'mobile': mobile,
+      'clinic_name': clinicName,
+      'clinic_address': clinicAddress,
+      'specialty': specialty,
+      'registration_number': registrationNumber,
+      'doctor_id': doctorId,
     };
   }
 
@@ -44,9 +69,63 @@ class Staff {
       salt: map['salt'],
       role: map['role'],
       createdAt: DateTime.parse(map['created_at']),
+      email: map['email'],
+      mobile: map['mobile'],
+      clinicName: map['clinic_name'],
+      clinicAddress: map['clinic_address'],
+      specialty: map['specialty'],
+      registrationNumber: map['registration_number'],
+      doctorId: map['doctor_id'],
     );
   }
+  
+  // CopyWith method for easy updates
+  Staff copyWith({
+    String? id,
+    String? name,
+    String? username,
+    String? passwordHash,
+    String? salt,
+    String? role,
+    DateTime? createdAt,
+    String? email,
+    String? mobile,
+    String? clinicName,
+    String? clinicAddress,
+    String? specialty,
+    String? registrationNumber,
+    String? doctorId,
+  }) {
+    return Staff(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      username: username ?? this.username,
+      passwordHash: passwordHash ?? this.passwordHash,
+      salt: salt ?? this.salt,
+      role: role ?? this.role,
+      createdAt: createdAt ?? this.createdAt,
+      email: email ?? this.email,
+      mobile: mobile ?? this.mobile,
+      clinicName: clinicName ?? this.clinicName,
+      clinicAddress: clinicAddress ?? this.clinicAddress,
+      specialty: specialty ?? this.specialty,
+      registrationNumber: registrationNumber ?? this.registrationNumber,
+      doctorId: doctorId ?? this.doctorId,
+    );
+  }
+  
+  // Helper method to check if staff belongs to a doctor
+  bool belongsToDoctor(String docId) {
+    return doctorId == docId;
+  }
+  
+  // Check if this is a doctor account
+  bool get isDoctor => role == 'doctor';
+  
+  // Check if this is a staff account
+  bool get isStaff => role == 'staff';
 }
+
 
 // Medical History model
 class MedicalHistory {
@@ -620,6 +699,7 @@ class PaymentInstallment {
   final String status; // 'PENDING', 'PARTIAL', 'FULL_PAID'
   final double paidAmount;
   final double remainingAmount;
+  final String? paymentFor; // What the payment is for (Consultation, Medicine, Procedure, Lab Test, etc.)
 
   PaymentInstallment({
     required this.id,
@@ -633,6 +713,7 @@ class PaymentInstallment {
     this.status = 'PENDING',
     this.paidAmount = 0.0,
     double? remainingAmount,
+    this.paymentFor,
   }) : createdAt = createdAt ?? DateTime.now(),
        remainingAmount = remainingAmount ?? totalAmount;
 
@@ -648,6 +729,7 @@ class PaymentInstallment {
     String? status,
     double? paidAmount,
     double? remainingAmount,
+    String? paymentFor,
   }) {
     return PaymentInstallment(
       id: id ?? this.id,
@@ -661,6 +743,7 @@ class PaymentInstallment {
       status: status ?? this.status,
       paidAmount: paidAmount ?? this.paidAmount,
       remainingAmount: remainingAmount ?? this.remainingAmount,
+      paymentFor: paymentFor ?? this.paymentFor,
     );
   }
 
@@ -677,6 +760,7 @@ class PaymentInstallment {
       'status': status,
       'paid_amount': paidAmount,
       'remaining_amount': remainingAmount,
+      'payment_for': paymentFor,
     };
   }
 
@@ -693,6 +777,7 @@ class PaymentInstallment {
       status: map['status'] ?? 'PENDING',
       paidAmount: (map['paid_amount'] ?? 0).toDouble(),
       remainingAmount: (map['remaining_amount'] ?? map['total_amount'] ?? 0).toDouble(),
+      paymentFor: map['payment_for'],
     );
   }
 }

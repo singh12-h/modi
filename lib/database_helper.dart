@@ -119,7 +119,7 @@ class DatabaseHelper {
     print('Opening database at $path'); // Debug
     return await openDatabase(
       path,
-      version: 10,
+      version: 13,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
       onOpen: (db) async {
@@ -288,6 +288,36 @@ class DatabaseHelper {
         )
       ''');
     }
+    if (oldVersion < 11) {
+      // Add new columns for doctor profile
+      try {
+        await db.execute('ALTER TABLE staff ADD COLUMN email TEXT');
+        await db.execute('ALTER TABLE staff ADD COLUMN mobile TEXT');
+        await db.execute('ALTER TABLE staff ADD COLUMN clinic_name TEXT');
+        await db.execute('ALTER TABLE staff ADD COLUMN clinic_address TEXT');
+        await db.execute('ALTER TABLE staff ADD COLUMN specialty TEXT');
+        await db.execute('ALTER TABLE staff ADD COLUMN registration_number TEXT');
+      } catch (e) {
+        print('Staff columns might already exist: $e');
+      }
+    }
+    if (oldVersion < 12) {
+      // Add doctor_id for multi-clinic support
+      try {
+        await db.execute('ALTER TABLE staff ADD COLUMN doctor_id TEXT');
+      } catch (e) {
+        print('doctor_id column might already exist: $e');
+      }
+    }
+    if (oldVersion < 13) {
+      // Add payment_for column to track what payment is for
+      try {
+        await db.execute('ALTER TABLE payment_installments ADD COLUMN payment_for TEXT');
+        print('Added payment_for column to payment_installments');
+      } catch (e) {
+        print('payment_for column might already exist: $e');
+      }
+    }
   }
 
   Future _createDB(Database db, int version) async {
@@ -407,7 +437,14 @@ class DatabaseHelper {
         password_hash TEXT NOT NULL,
         salt TEXT NOT NULL,
         role TEXT NOT NULL,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        email TEXT,
+        mobile TEXT,
+        clinic_name TEXT,
+        clinic_address TEXT,
+        specialty TEXT,
+        registration_number TEXT,
+        doctor_id TEXT
       )
     ''');
     // Payment Installments Table - For tracking bills with partial payments
@@ -424,6 +461,7 @@ class DatabaseHelper {
         status TEXT NOT NULL DEFAULT 'PENDING',
         paid_amount REAL DEFAULT 0,
         remaining_amount REAL NOT NULL,
+        payment_for TEXT,
         FOREIGN KEY (patient_id) REFERENCES patients (id)
       )
     ''');
@@ -567,6 +605,37 @@ class DatabaseHelper {
     final maps = await db.query('staff', where: 'username = ?', whereArgs: [username]);
     if (maps.isNotEmpty) return Staff.fromMap(maps.first);
     return null;
+  }
+
+  // Get staff by ID
+  Future<Staff?> getStaffById(String id) async {
+    if (kIsWeb) {
+      try {
+        return _webStaff.firstWhere((s) => s.id == id);
+      } catch (_) {
+        return null;
+      }
+    }
+    final db = await database;
+    final maps = await db.query('staff', where: 'id = ?', whereArgs: [id]);
+    if (maps.isNotEmpty) return Staff.fromMap(maps.first);
+    return null;
+  }
+
+  // Get all staff members for a specific doctor (multi-clinic support)
+  Future<List<Staff>> getStaffByDoctorId(String doctorId) async {
+    if (kIsWeb) {
+      return _webStaff.where((s) => s.doctorId == doctorId).toList();
+    }
+    final db = await database;
+    final maps = await db.query('staff', where: 'doctor_id = ?', whereArgs: [doctorId]);
+    return List.generate(maps.length, (i) => Staff.fromMap(maps[i]));
+  }
+
+  // Get the parent doctor for a staff member
+  Future<Staff?> getParentDoctor(Staff staff) async {
+    if (staff.doctorId == null) return null;
+    return await getStaffById(staff.doctorId!);
   }
 
   // Patient Operations
@@ -1371,6 +1440,17 @@ class DatabaseHelper {
       'partial_count': partialCount,
       'full_paid_count': fullPaidCount,
     };
+  }
+
+  // Insert payment installment
+  Future<int> insertPaymentInstallment(PaymentInstallment installment) async {
+    if (kIsWeb) {
+      _webInstallments.add(installment);
+      await _saveWebData();
+      return 1;
+    }
+    final db = await database;
+    return await db.insert('payment_installments', installment.toMap());
   }
 
   // Update payment installment

@@ -115,20 +115,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Medical Icon with Glow Effect
+                    // App Icon with Glow Effect
                     Container(
-                      width: 150,
-                      height: 150,
+                      width: 180,
+                      height: 180,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Colors.white,
-                            Color(0xFFE3F2FD),
-                          ],
-                        ),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.white.withOpacity(0.5),
@@ -142,10 +134,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.local_hospital,
-                        size: 80,
-                        color: Color(0xFF667eea),
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/icon/app_icon.png',
+                          width: 180,
+                          height: 180,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 40),

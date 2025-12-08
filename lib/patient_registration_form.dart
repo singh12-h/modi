@@ -9,6 +9,8 @@ import 'package:intl/intl.dart';
 import 'models.dart';
 import 'patient_qr_code.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:image_cropper/image_cropper.dart';
 
 class PatientRegistrationForm extends StatefulWidget {
   final Appointment? appointment;
@@ -31,9 +33,6 @@ class _PatientRegistrationFormState extends State<PatientRegistrationForm> {
   final TextEditingController _symptomsController = TextEditingController();
   final TextEditingController _emergencyContactController =
       TextEditingController();
-  final TextEditingController _feeController = TextEditingController(
-    text: '500',
-  );
   String? _selectedGender;
   DateTime? _selectedBirthDate; // New: Birth date for auto age calculation
   String _visitType = 'New Patient'; // New field
@@ -144,22 +143,207 @@ class _PatientRegistrationFormState extends State<PatientRegistrationForm> {
   final ImagePicker _picker = ImagePicker();
 
   Future<void> _pickImage() async {
+    // Show choice dialog
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          child: SafeArea(
+            child: Wrap(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Center(
+                    child: Text(
+                      'Select Photo',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.camera_alt, color: Colors.blue),
+                  ),
+                  title: const Text('Take Photo'),
+                  subtitle: const Text('Use camera to capture'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _getImage(ImageSource.camera);
+                  },
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.photo_library, color: Colors.purple),
+                  ),
+                  title: const Text('Choose from Gallery'),
+                  subtitle: const Text('Select existing photo'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _getImage(ImageSource.gallery);
+                  },
+                ),
+                if (_selectedImage != null || _webImagePath != null)
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.delete, color: Colors.red),
+                    ),
+                    title: const Text('Remove Photo'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() {
+                        _selectedImage = null;
+                        _webImagePath = null;
+                      });
+                    },
+                  ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _getImage(ImageSource source) async {
     try {
-      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-      if (image != null) {
-        setState(() {
-          if (kIsWeb) {
-            _webImagePath = image.path;
-          } else {
-            _selectedImage = File(image.path);
+      // Request permission for camera
+      if (source == ImageSource.camera && !kIsWeb) {
+        final status = await Permission.camera.request();
+        if (status.isDenied || status.isPermanentlyDenied) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Camera permission required'),
+                action: SnackBarAction(
+                  label: 'Settings',
+                  onPressed: () => openAppSettings(),
+                ),
+                backgroundColor: Colors.red,
+              ),
+            );
           }
-        });
+          return;
+        }
+      }
+
+      // Request permission for gallery
+      if (source == ImageSource.gallery && !kIsWeb) {
+        final status = await Permission.photos.request();
+        // On older Android, use storage permission
+        if (status.isDenied) {
+          await Permission.storage.request();
+        }
+      }
+
+      final XFile? image = await _picker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+      
+      if (image != null) {
+        // Crop the image (only on mobile)
+        if (!kIsWeb) {
+          final croppedFile = await ImageCropper().cropImage(
+            sourcePath: image.path,
+            aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+            uiSettings: [
+              AndroidUiSettings(
+                toolbarTitle: 'Crop Photo',
+                toolbarColor: const Color(0xFF8E2DE2),
+                toolbarWidgetColor: Colors.white,
+                initAspectRatio: CropAspectRatioPreset.square,
+                lockAspectRatio: false,
+                activeControlsWidgetColor: const Color(0xFFFF0080),
+              ),
+              IOSUiSettings(
+                title: 'Crop Photo',
+                aspectRatioLockEnabled: false,
+              ),
+            ],
+          );
+          
+          if (croppedFile != null) {
+            setState(() {
+              _selectedImage = File(croppedFile.path);
+            });
+          } else {
+            // User cancelled cropping, use original
+            setState(() {
+              _selectedImage = File(image.path);
+            });
+          }
+        } else {
+          // Web - no cropping
+          setState(() {
+            _webImagePath = image.path;
+          });
+        }
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white),
+                  SizedBox(width: 10),
+                  Text('Photo selected successfully!'),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } on PlatformException catch (e) {
+      print('Platform Error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
-      print('Image Picker Error: $e'); // Debug log
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error picking image: $e')));
+      print('Image Picker Error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -597,7 +781,6 @@ Thank you for choosing MODI CLINIC! 🙏''';
   final FocusNode _symptomsFocus = FocusNode();
   final FocusNode _historyFocus = FocusNode();
   final FocusNode _emergencyFocus = FocusNode();
-  final FocusNode _feeFocus = FocusNode();
 
   @override
   void dispose() {
@@ -608,7 +791,6 @@ Thank you for choosing MODI CLINIC! 🙏''';
     _medicalHistoryController.dispose();
     _symptomsController.dispose();
     _emergencyContactController.dispose();
-    _feeController.dispose();
 
     // Dispose Focus Nodes
     _nameFocus.dispose();
@@ -619,7 +801,6 @@ Thank you for choosing MODI CLINIC! 🙏''';
     _symptomsFocus.dispose();
     _historyFocus.dispose();
     _emergencyFocus.dispose();
-    _feeFocus.dispose();
     super.dispose();
   }
 
@@ -844,43 +1025,25 @@ Thank you for choosing MODI CLINIC! 🙏''';
                                 Icons.contact_phone_outlined,
                                 isNumber: true,
                                 focusNode: _emergencyFocus,
-                                nextFocus: _feeFocus,
                               ),
                             ],
                           ),
                           const SizedBox(height: 20),
 
                           _buildCard(
-                            title: 'Registration & Payment',
-                            icon: Icons.payment_outlined,
+                            title: 'Token Details',
+                            icon: Icons.confirmation_number_outlined,
                             color: Colors.orange,
                             children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextFormField(
-                                      key: ValueKey(_token),
-                                      initialValue: _token,
-                                      readOnly: true,
-                                      decoration: _inputDecoration(
-                                        'Token Number',
-                                        Icons.confirmation_number_outlined,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: _buildTextField(
-                                      _feeController,
-                                      'Fee (₹)',
-                                      Icons.currency_rupee,
-                                      isNumber: true,
-                                      focusNode: _feeFocus,
-                                    ),
-                                  ),
-                                ],
+                              TextFormField(
+                                key: ValueKey(_token),
+                                initialValue: _token,
+                                readOnly: true,
+                                decoration: _inputDecoration(
+                                  'Token Number',
+                                  Icons.confirmation_number_outlined,
+                                ),
                               ),
-                              // Payment mode and status removed - will be handled in patient detail view
                             ],
                           ),
                           const SizedBox(height: 30),

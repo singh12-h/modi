@@ -1512,53 +1512,70 @@ class _PatientDetailViewState extends State<PatientDetailView> {
   void _showPhotoDialog() {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
+      barrierColor: Colors.black87,
+      builder: (context) => Center(
         child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            Center(
-              child: Hero(
-                tag: 'patient_photo_${_patient?.id}',
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 400, maxHeight: 400),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 20,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: _patient?.photoPath != null
-                        ? (kIsWeb
-                            ? Image.network(
-                                _patient!.photoPath!,
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) => _buildPlaceholderPhoto(),
-                              )
-                            : Image.file(
-                                File(_patient!.photoPath!),
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) => _buildPlaceholderPhoto(),
-                              ))
-                        : _buildPlaceholderPhoto(),
-                  ),
+            // Photo Container
+            Hero(
+              tag: 'patient_photo_${_patient?.id}',
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 350, maxHeight: 350),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: _patient?.photoPath != null
+                      ? (kIsWeb
+                          ? Image.network(
+                              _patient!.photoPath!,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => _buildPlaceholderPhoto(),
+                            )
+                          : Image.file(
+                              File(_patient!.photoPath!),
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => _buildPlaceholderPhoto(),
+                            ))
+                      : _buildPlaceholderPhoto(),
                 ),
               ),
             ),
+            // Close Button - On top-right corner OF the photo
             Positioned(
-              top: 40,
-              right: 40,
-              child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white, size: 30),
-                onPressed: () => Navigator.pop(context),
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.black.withOpacity(0.5),
+              top: -15,
+              right: -15,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.4),
+                        blurRadius: 8,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: 24,
+                  ),
                 ),
               ),
             ),

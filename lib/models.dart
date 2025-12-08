@@ -358,6 +358,7 @@ class Patient {
   final DateTime? lastVisit;
   final int consultationCount;
   final bool isAppointment;
+  final DateTime? birthDate; // For birthday notification and auto age calculation
 
   Patient({
     required this.id,
@@ -380,6 +381,7 @@ class Patient {
     this.lastVisit,
     int? consultationCount,
     this.isAppointment = false,
+    this.birthDate,
   })  : registrationTime = registrationTime ?? DateTime.now(),
         consultationCount = consultationCount ?? 0,
         history = history ?? [];
@@ -405,6 +407,7 @@ class Patient {
     DateTime? lastVisit,
     int? consultationCount,
     bool? isAppointment,
+    DateTime? birthDate,
   }) {
     return Patient(
       id: id ?? this.id,
@@ -427,6 +430,7 @@ class Patient {
       lastVisit: lastVisit ?? this.lastVisit,
       consultationCount: consultationCount ?? this.consultationCount,
       isAppointment: isAppointment ?? this.isAppointment,
+      birthDate: birthDate ?? this.birthDate,
     );
   }
 
@@ -453,6 +457,7 @@ class Patient {
       'last_visit': lastVisit?.toIso8601String(),
       'consultation_count': consultationCount,
       'is_appointment': isAppointment ? 1 : 0,
+      'birth_date': birthDate?.toIso8601String(),
     };
   }
 
@@ -503,6 +508,7 @@ class Patient {
       lastVisit: map['last_visit'] != null ? DateTime.parse(map['last_visit']) : null,
       consultationCount: map['consultation_count'] ?? 0,
       isAppointment: map['is_appointment'] == 1,
+      birthDate: map['birth_date'] != null ? DateTime.parse(map['birth_date']) : null,
     );
   }
 }

@@ -1641,6 +1641,70 @@ class _PatientDetailViewState extends State<PatientDetailView> {
             ),
             const Divider(height: 12),
             _buildCompactInfoRow(Icons.phone, _patient?.mobile ?? 'N/A'),
+            // Birth Date Display
+            if (_patient?.birthDate != null) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(Icons.cake, size: 14, color: Colors.grey[600]),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Text(
+                          DateFormat('dd MMM yyyy').format(_patient!.birthDate!),
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF8E2DE2).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${_calculateAge(_patient!.birthDate!)} yrs',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF8E2DE2),
+                            ),
+                          ),
+                        ),
+                        // Birthday indicator
+                        if (_isBirthdayToday(_patient!.birthDate!)) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFFF0080), Color(0xFFFF8C00)],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.celebration, size: 12, color: Colors.white),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Birthday Today! 🎂',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
             if (_patient?.address != null && _patient!.address!.isNotEmpty) ...[
               const SizedBox(height: 6),
               _buildCompactInfoRow(Icons.location_on, _patient!.address!),
@@ -1654,6 +1718,24 @@ class _PatientDetailViewState extends State<PatientDetailView> {
       ),
     );
   }
+
+  // Calculate age from birth date
+  int _calculateAge(DateTime birthDate) {
+    final now = DateTime.now();
+    int age = now.year - birthDate.year;
+    if (now.month < birthDate.month || 
+        (now.month == birthDate.month && now.day < birthDate.day)) {
+      age--;
+    }
+    return age;
+  }
+
+  // Check if birthday is today
+  bool _isBirthdayToday(DateTime birthDate) {
+    final now = DateTime.now();
+    return birthDate.month == now.month && birthDate.day == now.day;
+  }
+
 
   Widget _buildMedicalHistory() {
     return Card(

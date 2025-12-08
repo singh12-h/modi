@@ -31,6 +31,7 @@ import 'package:modi/settings_configuration.dart';
 import 'package:modi/lab_reports_management.dart';
 import 'package:modi/doctor_schedule_calendar.dart';
 import 'package:modi/follow_up_appointments.dart';
+import 'package:modi/birthday_notification_widget.dart';
 
 class MenuItem {
   final IconData icon;
@@ -104,15 +105,13 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
     MenuItem(icon: Icons.event_repeat_rounded, label: 'Follow-up Appointments', route: 'FollowUpAppointments'),
     MenuItem(icon: Icons.payment_rounded, label: 'Payment Management', route: 'PaymentManagement'),
     MenuItem(icon: Icons.medication_rounded, label: 'Medicine Database', route: 'MedicineDatabase'),
-    MenuItem(icon: Icons.science_rounded, label: 'Lab Reports', route: 'LabReportsManagement'),
-    MenuItem(icon: Icons.schedule_rounded, label: 'Doctor Schedule', route: 'DoctorScheduleCalendar'),
     MenuItem(icon: Icons.tv_rounded, label: 'Waiting Room Display', route: 'WaitingRoomDisplay'),
     MenuItem(icon: Icons.sms_rounded, label: 'SMS Integration', route: 'SmsIntegration'),
     MenuItem(icon: Icons.chat_rounded, label: 'WhatsApp Integration', route: 'WhatsappIntegration'),
-    MenuItem(icon: Icons.email_rounded, label: 'Email Features', route: 'EmailFeatures'),
     MenuItem(icon: Icons.feedback_rounded, label: 'Patient Feedback', route: 'PatientFeedbackSystem'),
     MenuItem(icon: Icons.analytics_rounded, label: 'Reports & Analytics', route: 'ReportsAnalytics'),
     MenuItem(icon: Icons.people_outline_rounded, label: 'Staff Management', route: 'StaffManagement'),
+    MenuItem(icon: Icons.cake_rounded, label: 'Birthday Wishes', route: 'BirthdayCalendar'),
     MenuItem(icon: Icons.settings_rounded, label: 'Settings', route: 'SettingsConfiguration'),
     MenuItem(icon: Icons.logout_rounded, label: 'Logout', route: null),
   ];
@@ -484,6 +483,9 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
         break;
       case 'FollowUpAppointments':
         page = const FollowUpAppointments();
+        break;
+      case 'BirthdayCalendar':
+        page = const BirthdayNotificationWidget(showAsCard: false);
         break;
     }
 

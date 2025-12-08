@@ -40,7 +40,22 @@ class _WhatsAppIntegrationState extends State<WhatsAppIntegration> with SingleTi
     'appointment': 'Dear [Name], your appointment is confirmed for [Date] at [Time]. Token: [Token]. Please arrive on time. - Modi Clinic',
     'offer': 'Dear [Name], special health checkup offer at Modi Clinic! Get 20% off on full body checkup. Valid till [Date]. Book now!',
     'report': 'Dear [Name], your medical reports are ready for collection. You can collect them from Modi Clinic during working hours. Thank you!',
-    'birthday': 'Dear [Name], wishing you a very Happy Birthday! May you be blessed with good health and happiness. - Modi Clinic',
+    'birthday': '''🎂 *Happy Birthday [Name]!* 🎉
+
+✨ आपको जन्मदिन की हार्दिक शुभकामनाएं! ✨
+
+May this special day bring you:
+🌟 Good Health & Happiness
+💪 Strength & Wellness  
+🙏 Peace & Prosperity
+
+Wishing you a wonderful year ahead filled with joy and excellent health!
+
+🏥 *With Warm Wishes,*
+*Dr. Modi & MODI CLINIC Team*
+📞 For appointments: Contact us anytime!
+
+🎁 *Special Birthday Offer:* Get 10% off on your next health checkup this month!''',
   };
 
   @override
@@ -111,6 +126,13 @@ class _WhatsAppIntegrationState extends State<WhatsAppIntegration> with SingleTi
       
       // Auto-select Follow-up template
       _selectedTemplate = 'followup';
+      _updateMessageFromTemplate();
+    } else if (filter == 'TodayBirthday') {
+      // Filter for patients with birthday today
+      filtered = await DatabaseHelper.instance.getTodayBirthdayPatients();
+      
+      // Auto-select Birthday template
+      _selectedTemplate = 'birthday';
       _updateMessageFromTemplate();
     }
 
@@ -427,6 +449,8 @@ class _WhatsAppIntegrationState extends State<WhatsAppIntegration> with SingleTi
               children: [
                 _buildFilterChip('All', 'All Patients'),
                 const SizedBox(width: 8),
+                _buildFilterChip('TodayBirthday', '🎂 Birthday Today', isBirthday: true),
+                const SizedBox(width: 8),
                 _buildFilterChip('Appointments', 'Tomorrow\'s Appts'),
                 const SizedBox(width: 8),
                 _buildFilterChip('FollowUps', 'Tomorrow\'s Follow-ups'),
@@ -530,7 +554,7 @@ class _WhatsAppIntegrationState extends State<WhatsAppIntegration> with SingleTi
     );
   }
 
-  Widget _buildFilterChip(String filter, String label) {
+  Widget _buildFilterChip(String filter, String label, {bool isBirthday = false}) {
     final isSelected = _currentFilter == filter;
     return FilterChip(
       label: Text(label),
@@ -538,13 +562,15 @@ class _WhatsAppIntegrationState extends State<WhatsAppIntegration> with SingleTi
       onSelected: (selected) {
         if (selected) _applyFilter(filter);
       },
-      backgroundColor: Colors.white,
-      selectedColor: const Color(0xFF25D366).withOpacity(0.2),
+      backgroundColor: isBirthday ? const Color(0xFFFFE4EC) : Colors.white,
+      selectedColor: isBirthday ? const Color(0xFFFF6B95) : const Color(0xFF25D366).withOpacity(0.2),
       labelStyle: TextStyle(
-        color: isSelected ? Colors.green[900] : Colors.black87,
+        color: isSelected 
+            ? (isBirthday ? Colors.white : Colors.green[900]) 
+            : (isBirthday ? const Color(0xFFFF6B95) : Colors.black87),
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       ),
-      checkmarkColor: Colors.green[900],
+      checkmarkColor: isBirthday ? Colors.white : Colors.green[900],
     );
   }
 

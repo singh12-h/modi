@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'models.dart';
 import 'patient_qr_code.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -34,8 +35,7 @@ class _PatientRegistrationFormState extends State<PatientRegistrationForm> {
     text: '500',
   );
   String? _selectedGender;
-  String? _selectedPaymentMode;
-  String? _selectedPaymentStatus;
+  DateTime? _selectedBirthDate; // New: Birth date for auto age calculation
   String _visitType = 'New Patient'; // New field
   bool _isPreviousPatient = false; // Track if patient visited before
   Patient? _previousVisit; // Store previous visit data
@@ -418,6 +418,7 @@ Thank you for choosing MODI CLINIC! 🙏''';
           registrationTime: DateTime.now(),
           registeredDate: DateTime.now(),
           isAppointment: widget.appointment != null,
+          birthDate: _selectedBirthDate, // For birthday notification
         );
 
         await DatabaseHelper.instance.insertPatient(patient);
@@ -597,8 +598,6 @@ Thank you for choosing MODI CLINIC! 🙏''';
   final FocusNode _historyFocus = FocusNode();
   final FocusNode _emergencyFocus = FocusNode();
   final FocusNode _feeFocus = FocusNode();
-  final FocusNode _paymentModeFocus = FocusNode();
-  final FocusNode _paymentStatusFocus = FocusNode();
 
   @override
   void dispose() {
@@ -621,8 +620,6 @@ Thank you for choosing MODI CLINIC! 🙏''';
     _historyFocus.dispose();
     _emergencyFocus.dispose();
     _feeFocus.dispose();
-    _paymentModeFocus.dispose();
-    _paymentStatusFocus.dispose();
     super.dispose();
   }
 
@@ -775,13 +772,18 @@ Thank you for choosing MODI CLINIC! 🙏''';
                                 nextFocus: _ageFocus,
                               ),
                               const SizedBox(height: 16),
+                              
+                              // Birthdate Picker with Auto Age Calculation
+                              _buildBirthDatePicker(),
+                              const SizedBox(height: 16),
+                              
                               Row(
                                 children: [
                                   Expanded(
                                     child: _buildTextField(
                                       _ageController,
                                       'Age',
-                                      Icons.calendar_today,
+                                      Icons.cake_outlined,
                                       isNumber: true,
                                       focusNode: _ageFocus,
                                       nextFocus: _genderFocus,
@@ -874,39 +876,11 @@ Thank you for choosing MODI CLINIC! 🙏''';
                                       Icons.currency_rupee,
                                       isNumber: true,
                                       focusNode: _feeFocus,
-                                      nextFocus: _paymentModeFocus,
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 16),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _buildDropdown(
-                                      'Payment Mode',
-                                      ['Cash', 'Card', 'UPI', 'Online'],
-                                      _selectedPaymentMode,
-                                      (val) => setState(
-                                        () => _selectedPaymentMode = val,
-                                      ),
-                                      focusNode: _paymentModeFocus,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: _buildDropdown(
-                                      'Status',
-                                      ['Pending', 'Paid', 'Partial'],
-                                      _selectedPaymentStatus,
-                                      (val) => setState(
-                                        () => _selectedPaymentStatus = val,
-                                      ),
-                                      focusNode: _paymentStatusFocus,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                              // Payment mode and status removed - will be handled in patient detail view
                             ],
                           ),
                           const SizedBox(height: 30),
@@ -994,6 +968,131 @@ Thank you for choosing MODI CLINIC! 🙏''';
     );
   }
 
+  // Calculate age from birthdate
+  int _calculateAge(DateTime birthDate) {
+    final now = DateTime.now();
+    int age = now.year - birthDate.year;
+    if (now.month < birthDate.month || 
+        (now.month == birthDate.month && now.day < birthDate.day)) {
+      age--;
+    }
+    return age;
+  }
+
+  // Birthdate Picker Widget with Auto Age Calculation
+  Widget _buildBirthDatePicker() {
+    return InkWell(
+      onTap: () async {
+        final DateTime? picked = await showDatePicker(
+          context: context,
+          initialDate: _selectedBirthDate ?? DateTime(2000, 1, 1),
+          firstDate: DateTime(1920),
+          lastDate: DateTime.now(),
+          helpText: 'जन्म तिथि चुनें / Select Birth Date',
+          cancelText: 'रद्द करें',
+          confirmText: 'चुनें',
+          builder: (context, child) {
+            return Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: const ColorScheme.light(
+                  primary: Color(0xFF8E2DE2),
+                  onPrimary: Colors.white,
+                  surface: Colors.white,
+                  onSurface: Colors.black,
+                ),
+              ),
+              child: child!,
+            );
+          },
+        );
+        
+        if (picked != null) {
+          setState(() {
+            _selectedBirthDate = picked;
+            // Auto calculate and fill age
+            final age = _calculateAge(picked);
+            _ageController.text = age.toString();
+          });
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: _selectedBirthDate != null 
+                ? const Color(0xFF8E2DE2) 
+                : Colors.grey[300]!,
+            width: _selectedBirthDate != null ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.cake_outlined,
+              color: _selectedBirthDate != null 
+                  ? const Color(0xFF8E2DE2) 
+                  : Colors.grey[400],
+              size: 22,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Birth Date (जन्म तिथि)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _selectedBirthDate != null
+                        ? DateFormat('dd MMM yyyy').format(_selectedBirthDate!)
+                        : 'Tap to select date',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: _selectedBirthDate != null 
+                          ? FontWeight.w600 
+                          : FontWeight.normal,
+                      color: _selectedBirthDate != null 
+                          ? Colors.black87 
+                          : Colors.grey[500],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (_selectedBirthDate != null) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF8E2DE2), Color(0xFFFF0080)],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${_calculateAge(_selectedBirthDate!)} yrs',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ] else ...[
+              Icon(Icons.calendar_today, color: Colors.grey[400], size: 20),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildGenderDropdown() {
     return DropdownButtonFormField<String>(
       value: _selectedGender,
@@ -1007,27 +1106,6 @@ Thank you for choosing MODI CLINIC! 🙏''';
         FocusScope.of(context).requestFocus(_mobileFocus); // Auto move focus
       },
       validator: (value) => value == null ? 'Required' : null,
-    );
-  }
-
-  Widget _buildDropdown(
-    String label,
-    List<String> items,
-    String? value,
-    Function(String?) onChanged, {
-    FocusNode? focusNode,
-  }) {
-    return DropdownButtonFormField<String>(
-      value: value,
-      focusNode: focusNode,
-      decoration: _inputDecoration(
-        label,
-        Icons.arrow_drop_down_circle_outlined,
-      ),
-      items: items
-          .map((String v) => DropdownMenuItem<String>(value: v, child: Text(v)))
-          .toList(),
-      onChanged: onChanged,
     );
   }
 }

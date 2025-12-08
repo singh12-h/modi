@@ -42,7 +42,20 @@ class _SmsIntegrationState extends State<SmsIntegration> with SingleTickerProvid
     SmsTemplate(
       id: '3',
       title: 'Birthday Wish',
-      content: 'Happy Birthday {name}! Wishing you good health and happiness on your special day. - Modi Clinic',
+      content: '''🎂 *Happy Birthday {name}!* 🎉
+
+✨ आपको जन्मदिन की हार्दिक शुभकामनाएं! ✨
+
+May this special day bring you:
+🌟 Good Health & Happiness
+💪 Strength & Wellness
+🙏 Peace & Prosperity
+
+Wishing you a wonderful year ahead filled with joy and good health!
+
+🏥 *With Warm Wishes,*
+*Dr. Modi & MODI CLINIC Team*
+📞 Contact: [Your Number]''',
       category: 'Birthday',
     ),
     SmsTemplate(
@@ -128,6 +141,12 @@ class _SmsIntegrationState extends State<SmsIntegration> with SingleTickerProvid
       filtered = _allPatients.where((p) => relevantFollowUps.any((f) => f.patientId == p.id)).toList();
       
       final template = _templates.firstWhere((t) => t.title == 'General Reminder', orElse: () => _templates[0]);
+      _applyTemplate(template);
+    } else if (filter == 'TodayBirthday') {
+      // Filter patients with birthday today
+      filtered = await DatabaseHelper.instance.getTodayBirthdayPatients();
+      
+      final template = _templates.firstWhere((t) => t.title == 'Birthday Wish', orElse: () => _templates[0]);
       _applyTemplate(template);
     }
 
@@ -421,6 +440,8 @@ class _SmsIntegrationState extends State<SmsIntegration> with SingleTickerProvid
             children: [
               _buildFilterChip('All', 'All'),
               const SizedBox(width: 8),
+              _buildFilterChip('TodayBirthday', '🎂 Birthday Today', isBirthday: true),
+              const SizedBox(width: 8),
               _buildFilterChip('TodayAppts', 'Today\'s Appts'),
               const SizedBox(width: 8),
               _buildFilterChip('TomorrowAppts', 'Tmrw Appts'),
@@ -600,7 +621,7 @@ class _SmsIntegrationState extends State<SmsIntegration> with SingleTickerProvid
     );
   }
 
-  Widget _buildFilterChip(String filter, String label) {
+  Widget _buildFilterChip(String filter, String label, {bool isBirthday = false}) {
     final isSelected = _currentFilter == filter;
     return FilterChip(
       label: Text(label),
@@ -608,10 +629,12 @@ class _SmsIntegrationState extends State<SmsIntegration> with SingleTickerProvid
       onSelected: (selected) {
         if (selected) _applyFilter(filter);
       },
-      backgroundColor: Colors.white,
-      selectedColor: Colors.blue[100],
+      backgroundColor: isBirthday ? const Color(0xFFFFE4EC) : Colors.white,
+      selectedColor: isBirthday ? const Color(0xFFFF6B95) : Colors.blue[100],
       labelStyle: TextStyle(
-        color: isSelected ? Colors.blue[900] : Colors.black87,
+        color: isSelected 
+            ? (isBirthday ? Colors.white : Colors.blue[900]) 
+            : (isBirthday ? const Color(0xFFFF6B95) : Colors.black87),
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       ),
     );

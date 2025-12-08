@@ -17,6 +17,7 @@ import 'package:path_provider/path_provider.dart';
 import 'staff_login_page.dart';
 import 'doctor_login_page.dart';
 import 'package:flutter/services.dart';
+import 'birthday_notification_widget.dart';
 
 class OPDStaffDashboard extends StatefulWidget {
   const OPDStaffDashboard({super.key});
@@ -46,6 +47,7 @@ class _OPDStaffDashboardState extends State<OPDStaffDashboard> {
     StaffMenuItem(icon: Icons.check_circle_rounded, label: 'Completed Patients', route: 'CompletedPatientsList'),
     StaffMenuItem(icon: Icons.search_rounded, label: 'Search Patient', route: 'PatientSearch'),
     StaffMenuItem(icon: Icons.payment_rounded, label: 'Payment Management', route: 'PaymentManagement'),
+    StaffMenuItem(icon: Icons.cake_rounded, label: 'Birthday Wishes', route: 'BirthdayCalendar'),
     StaffMenuItem(icon: Icons.sms_rounded, label: 'SMS Reminders', route: 'SmsIntegration'),
     StaffMenuItem(icon: Icons.chat_rounded, label: 'WhatsApp', route: 'WhatsAppIntegration'),
   ];
@@ -134,6 +136,9 @@ class _OPDStaffDashboardState extends State<OPDStaffDashboard> {
         break;
       case 'CompletedPatientsList':
         page = const CompletedPatientsPage();
+        break;
+      case 'BirthdayCalendar':
+        page = const BirthdayNotificationWidget(showAsCard: false);
         break;
       default:
         return;

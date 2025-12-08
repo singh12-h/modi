@@ -119,7 +119,7 @@ class DatabaseHelper {
     print('Opening database at $path'); // Debug
     return await openDatabase(
       path,
-      version: 13,
+      version: 14,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
       onOpen: (db) async {
@@ -318,6 +318,15 @@ class DatabaseHelper {
         print('payment_for column might already exist: $e');
       }
     }
+    if (oldVersion < 14) {
+      // Add birth_date column for birthday notifications and auto age calculation
+      try {
+        await db.execute('ALTER TABLE patients ADD COLUMN birth_date TEXT');
+        print('Added birth_date column to patients');
+      } catch (e) {
+        print('birth_date column might already exist: $e');
+      }
+    }
   }
 
   Future _createDB(Database db, int version) async {
@@ -343,7 +352,8 @@ class DatabaseHelper {
         last_visit TEXT,
         consultation_count INTEGER DEFAULT 0,
         history TEXT,
-        is_appointment INTEGER DEFAULT 0
+        is_appointment INTEGER DEFAULT 0,
+        birth_date TEXT
       )
     ''');
     await db.execute('''
@@ -812,6 +822,69 @@ class DatabaseHelper {
     final db = await database;
     final maps = await db.query('consultations', where: 'follow_up_date = ?', whereArgs: [todayStr]);
     return List.generate(maps.length, (i) => Consultation.fromMap(maps[i]));
+  }
+
+  // Get patients with birthday today
+  Future<List<Patient>> getTodayBirthdayPatients() async {
+    final now = DateTime.now();
+    final todayMonth = now.month.toString().padLeft(2, '0');
+    final todayDay = now.day.toString().padLeft(2, '0');
+    
+    if (kIsWeb) {
+      return _webPatients.where((p) {
+        if (p.birthDate == null) return false;
+        return p.birthDate!.month == now.month && p.birthDate!.day == now.day;
+      }).toList();
+    }
+    
+    final db = await database;
+    // Match month and day from birth_date (format: YYYY-MM-DD...)
+    final maps = await db.rawQuery(
+      "SELECT * FROM patients WHERE birth_date IS NOT NULL AND substr(birth_date, 6, 2) = ? AND substr(birth_date, 9, 2) = ?",
+      [todayMonth, todayDay]
+    );
+    return List.generate(maps.length, (i) => Patient.fromMap(maps[i]));
+  }
+
+  // Get upcoming birthdays (next 7 days)
+  Future<List<Patient>> getUpcomingBirthdayPatients({int days = 7}) async {
+    final now = DateTime.now();
+    
+    if (kIsWeb) {
+      return _webPatients.where((p) {
+        if (p.birthDate == null) return false;
+        // Check if birthday falls within next 'days' days
+        for (int i = 0; i <= days; i++) {
+          final checkDate = now.add(Duration(days: i));
+          if (p.birthDate!.month == checkDate.month && p.birthDate!.day == checkDate.day) {
+            return true;
+          }
+        }
+        return false;
+      }).toList();
+    }
+    
+    // For SQLite, we need to check each day
+    final db = await database;
+    List<Patient> result = [];
+    for (int i = 0; i <= days; i++) {
+      final checkDate = now.add(Duration(days: i));
+      final checkMonth = checkDate.month.toString().padLeft(2, '0');
+      final checkDay = checkDate.day.toString().padLeft(2, '0');
+      
+      final maps = await db.rawQuery(
+        "SELECT * FROM patients WHERE birth_date IS NOT NULL AND substr(birth_date, 6, 2) = ? AND substr(birth_date, 9, 2) = ?",
+        [checkMonth, checkDay]
+      );
+      result.addAll(List.generate(maps.length, (i) => Patient.fromMap(maps[i])));
+    }
+    return result;
+  }
+
+  // Get birthday count for notifications
+  Future<int> getTodayBirthdayCount() async {
+    final patients = await getTodayBirthdayPatients();
+    return patients.length;
   }
 
   Future<MedicalHistory?> getMedicalHistory(String patientId) async {

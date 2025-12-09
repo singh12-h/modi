@@ -23,11 +23,17 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
+    final isMobile = screenSize.width < 700;
+    
+    // Scale factors for responsive design
+    final logoSize = isMobile ? 200.0 : 400.0;
+    final cardWidth = isMobile ? screenSize.width * 0.92 : 450.0;
+    final cardHeight = isMobile ? screenSize.height * 0.78 : 520.0;
 
     return Scaffold(
       body: Stack(
         children: [
-          // Background
+          // Background - Same design on mobile and desktop
           Row(
             children: [
               // Left side: Dark blue gradient with design
@@ -53,7 +59,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                   ),
                 ),
               ),
-              // Right side: Clean white background
+              // Right side: Clean white background - same on mobile and desktop
               Expanded(
                 flex: 1,
                 child: Container(
@@ -63,99 +69,137 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
             ],
           ),
 
-          // Medical Logo - mostly in white section, small part behind card
+          // Medical Logo - positioned on white section (responsive for mobile and desktop)
           Positioned(
-            left: screenSize.width * 0.58,
-            top: screenSize.height * 0.5 - 225,
+            left: isMobile ? screenSize.width * 0.52 : screenSize.width * 0.58,
+            top: isMobile 
+                ? screenSize.height * 0.08  // Higher on mobile
+                : screenSize.height * 0.5 - (logoSize / 2) - 25,
             child: Image.asset(
               'assets/images/medical_logo.png',
-              width: 400,
-              height: 400,
+              width: logoSize,
+              height: logoSize,
               fit: BoxFit.contain,
             ),
           ),
 
           // Login Card - centered with glassmorphic effect
-          Center(
-            child: GlassmorphicContainer(
-              width: screenSize.width > 600 ? 450 : screenSize.width * 0.85,
-              height: screenSize.height > 650 ? 580 : screenSize.height * 0.85,
-              borderRadius: 20,
-              blur: 10,
-              alignment: Alignment.center,
-              border: 2,
-              linearGradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white.withAlpha(51),
-                  Colors.white.withAlpha(26),
-                ],
-                stops: const [0.1, 1],
-              ),
-              borderGradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white.withAlpha(128),
-                  Colors.white.withAlpha(128),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(32.0),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Staff Portal Login',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF001F3F), // Dark Blue
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Icon(
-                        Icons.badge_outlined,
-                        size: 48,
-                        color: Color(0xFF001F3F),
-                      ),
-                      const SizedBox(height: 32),
-                        _buildTextField(
-                          controller: _usernameController,
-                          hintText: 'Staff Username',
-                          icon: Icons.person_outline,
-                        ),
-                      const SizedBox(height: 20),
-                        _buildTextField(
-                          controller: _passwordController,
-                          hintText: 'Password',
-                          icon: Icons.lock_outline,
-                          obscureText: _obscurePassword,
-                          isPassword: true,
-                        ),
-                      const SizedBox(height: 20),
-                      _buildRememberMeAndForgotPassword(),
-                      const SizedBox(height: 32),
-                      _buildLoginButton(),
-                      const SizedBox(height: 16),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(builder: (context) => const DoctorLoginPage()),
-                          );
-                        },
-                        child: const Text(
-                          'Switch to Doctor Login',
-                          style: TextStyle(
-                            color: Color(0xFF003366),
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                      ),
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 12 : 0,
+                  vertical: 16,
+                ),
+                child: GlassmorphicContainer(
+                  width: cardWidth,
+                  height: cardHeight,
+                  borderRadius: 20,
+                  blur: 10,
+                  alignment: Alignment.center,
+                  border: 2,
+                  linearGradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withAlpha(51),
+                      Colors.white.withAlpha(26),
                     ],
+                    stops: const [0.1, 1],
+                  ),
+                  borderGradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withAlpha(128),
+                      Colors.white.withAlpha(128),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(isMobile ? 20.0 : 32.0),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // App Icon for mobile (same style as desktop icon)
+                          if (isMobile) ...[
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 10,
+                                    spreadRadius: 1,
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: Image.asset(
+                                  'assets/icon/app_icon.png',
+                                  width: 80,
+                                  height: 80,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                          Text(
+                            'Staff Portal Login',
+                            style: TextStyle(
+                              fontSize: isMobile ? 20 : 24,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF001F3F),
+                            ),
+                          ),
+                          SizedBox(height: isMobile ? 8 : 16),
+                          Icon(
+                            Icons.badge_outlined,
+                            size: isMobile ? 36 : 48,
+                            color: const Color(0xFF001F3F),
+                          ),
+                          SizedBox(height: isMobile ? 20 : 32),
+                          _buildTextField(
+                            controller: _usernameController,
+                            hintText: 'Staff Username',
+                            icon: Icons.person_outline,
+                          ),
+                          SizedBox(height: isMobile ? 14 : 20),
+                          _buildTextField(
+                            controller: _passwordController,
+                            hintText: 'Password',
+                            icon: Icons.lock_outline,
+                            obscureText: _obscurePassword,
+                            isPassword: true,
+                          ),
+                          SizedBox(height: isMobile ? 14 : 20),
+                          _buildRememberMeAndForgotPassword(),
+                          SizedBox(height: isMobile ? 20 : 32),
+                          _buildLoginButton(),
+                          SizedBox(height: isMobile ? 12 : 16),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(builder: (context) => const DoctorLoginPage()),
+                              );
+                            },
+                            child: Text(
+                              'Switch to Doctor Login',
+                              style: TextStyle(
+                                color: const Color(0xFF003366),
+                                fontSize: isMobile ? 13 : 14,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),

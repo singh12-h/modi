@@ -1034,7 +1034,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [Color(0xFF06B6D4), Color(0xFF3B82F6)],
@@ -1046,9 +1046,22 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
+                        BoxShadow(
+                          color: const Color(0xFFA855F7).withOpacity(0.3),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
                       ],
                     ),
-                    child: const Icon(Icons.local_hospital_rounded, color: Colors.white, size: 28),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(
+                        'assets/icon/app_icon.png',
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -1090,7 +1103,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
             : Center(
                 key: const ValueKey('collapsed'),
                 child: Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [Color(0xFF06B6D4), Color(0xFF3B82F6)],
@@ -1102,9 +1115,22 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
+                      BoxShadow(
+                        color: const Color(0xFFA855F7).withOpacity(0.3),
+                        blurRadius: 20,
+                        spreadRadius: 2,
+                      ),
                     ],
                   ),
-                  child: const Icon(Icons.local_hospital_rounded, color: Colors.white, size: 28),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.asset(
+                      'assets/icon/app_icon.png',
+                      width: 48,
+                      height: 48,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
                 ),
               ),
       ),
@@ -1354,7 +1380,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
                   children: [
                     // App Icon
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
@@ -1364,9 +1390,21 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
+                          BoxShadow(
+                            color: const Color(0xFFA855F7).withOpacity(0.4),
+                            blurRadius: 20,
+                            spreadRadius: 3,
+                          ),
                         ],
                       ),
-                      child: const Icon(Icons.local_hospital_rounded, color: Color(0xFF3B82F6), size: 40),
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/icon/app_icon.png',
+                          width: 72,
+                          height: 72,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(

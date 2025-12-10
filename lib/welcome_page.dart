@@ -10,126 +10,174 @@ class WelcomePage extends StatefulWidget {
 }
 
 class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin {
-  late AnimationController _floatingController;
+  late AnimationController _floatController;
   late AnimationController _pulseController;
-
+  late AnimationController _rotateController;
+  
   @override
   void initState() {
     super.initState();
     
-    _floatingController = AnimationController(
+    _floatController = AnimationController(
       duration: const Duration(seconds: 3),
       vsync: this,
     )..repeat(reverse: true);
-
+    
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat(reverse: true);
+    
+    _rotateController = AnimationController(
+      duration: const Duration(seconds: 30),
       vsync: this,
     )..repeat();
   }
 
   @override
   void dispose() {
-    _floatingController.dispose();
+    _floatController.dispose();
     _pulseController.dispose();
+    _rotateController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 400;
+    
     return Scaffold(
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
             colors: [
-              Color(0xFF0a0a1a), // Dark navy top
-              Color(0xFF0d1b2a), // Dark blue
-              Color(0xFF1b263b), // Slightly lighter blue
+              Color(0xFF0f0c29),
+              Color(0xFF302b63),
+              Color(0xFF24243e),
             ],
           ),
         ),
         child: Stack(
           children: [
-            // Animated Stars/Particles
-            ...List.generate(40, (index) {
-              return _AnimatedStar(
-                index: index,
-                controller: _floatingController,
+            // Animated background orbs
+            ...List.generate(4, (index) {
+              final positions = [
+                const Offset(-0.2, -0.1),
+                const Offset(0.8, 0.2),
+                const Offset(-0.1, 0.7),
+                const Offset(0.9, 0.8),
+              ];
+              final sizes = [250.0, 200.0, 180.0, 220.0];
+              final colors = [
+                const Color(0xFF667eea),
+                const Color(0xFF764ba2),
+                const Color(0xFFa8edea),
+                const Color(0xFF667eea),
+              ];
+              
+              return AnimatedBuilder(
+                animation: _rotateController,
+                builder: (context, child) {
+                  final offset = math.sin(_rotateController.value * 2 * math.pi + index) * 20;
+                  return Positioned(
+                    left: positions[index].dx * screenSize.width + offset,
+                    top: positions[index].dy * screenSize.height + offset,
+                    child: Container(
+                      width: sizes[index],
+                      height: sizes[index],
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            colors[index].withOpacity(0.15),
+                            colors[index].withOpacity(0.05),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
               );
             }),
-
-            // Main Content
+            
+            // Main content
             SafeArea(
               child: Center(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 20 : 32),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const SizedBox(height: 60),
+                      SizedBox(height: isSmallScreen ? 40 : 60),
                       
-                      // Animated Logo - Purple/Pink gradient circle with icon
+                      // Floating Logo
                       AnimatedBuilder(
-                        animation: _floatingController,
+                        animation: _floatController,
                         builder: (context, child) {
                           return Transform.translate(
-                            offset: Offset(0, math.sin(_floatingController.value * 2 * math.pi) * 8),
-                            child: Container(
-                              width: 100,
-                              height: 100,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: const LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    Color(0xFF9D4EDD), // Purple
-                                    Color(0xFFE040FB), // Pink
-                                    Color(0xFF7B2CBF), // Deep purple
-                                  ],
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF9D4EDD).withOpacity(0.6),
-                                    blurRadius: 30,
-                                    spreadRadius: 5,
+                            offset: Offset(0, math.sin(_floatController.value * math.pi) * 10),
+                            child: AnimatedBuilder(
+                              animation: _pulseController,
+                              builder: (context, child) {
+                                final scale = 1.0 + (_pulseController.value * 0.03);
+                                return Transform.scale(
+                                  scale: scale,
+                                  child: Container(
+                                    width: isSmallScreen ? 100 : 120,
+                                    height: isSmallScreen ? 100 : 120,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: const LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          Color(0xFF667eea),
+                                          Color(0xFF764ba2),
+                                        ],
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFF667eea).withOpacity(0.4),
+                                          blurRadius: 25,
+                                          spreadRadius: 5,
+                                        ),
+                                        BoxShadow(
+                                          color: const Color(0xFF764ba2).withOpacity(0.3),
+                                          blurRadius: 40,
+                                          spreadRadius: 10,
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Icon(
+                                      Icons.local_hospital_rounded,
+                                      size: 50,
+                                      color: Colors.white,
+                                    ),
                                   ),
-                                  BoxShadow(
-                                    color: const Color(0xFFE040FB).withOpacity(0.4),
-                                    blurRadius: 50,
-                                    spreadRadius: 10,
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.business, // Building/Hospital icon
-                                size: 50,
-                                color: Colors.white,
-                              ),
+                                );
+                              },
                             ),
                           );
                         },
                       ),
                       
-                      const SizedBox(height: 40),
+                      SizedBox(height: isSmallScreen ? 30 : 40),
                       
-                      // "Welcome to" text with gradient
+                      // Welcome Text
                       ShaderMask(
                         shaderCallback: (bounds) => const LinearGradient(
-                          colors: [
-                            Color(0xFF9D4EDD),
-                            Color(0xFFE040FB),
-                            Color(0xFF00D9FF),
-                          ],
+                          colors: [Color(0xFFa8edea), Color(0xFFfed6e3)],
                         ).createShader(bounds),
-                        child: const Text(
+                        child: Text(
                           'Welcome to',
                           style: TextStyle(
-                            fontSize: 22,
+                            fontSize: isSmallScreen ? 16 : 20,
                             fontWeight: FontWeight.w400,
                             color: Colors.white,
                             letterSpacing: 1,
@@ -139,31 +187,19 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                       
                       const SizedBox(height: 8),
                       
-                      // "MODI" - Large glowing text
-                      Text(
-                        'MODI',
-                        style: TextStyle(
-                          fontSize: 52,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 6,
-                          shadows: [
-                            Shadow(
-                              color: const Color(0xFF9D4EDD).withOpacity(0.8),
-                              offset: const Offset(0, 0),
-                              blurRadius: 20,
-                            ),
-                            Shadow(
-                              color: const Color(0xFFE040FB).withOpacity(0.5),
-                              offset: const Offset(0, 0),
-                              blurRadius: 40,
-                            ),
-                            const Shadow(
-                              color: Colors.white24,
-                              offset: Offset(0, 2),
-                              blurRadius: 4,
-                            ),
-                          ],
+                      // MODI Title
+                      ShaderMask(
+                        shaderCallback: (bounds) => const LinearGradient(
+                          colors: [Color(0xFF667eea), Color(0xFFa8edea)],
+                        ).createShader(bounds),
+                        child: Text(
+                          'MODI',
+                          style: TextStyle(
+                            fontSize: isSmallScreen ? 52 : 64,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 6,
+                          ),
                         ),
                       ),
                       
@@ -174,45 +210,47 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                         'Medical OPD Digital Interface',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: isSmallScreen ? 12 : 14,
                           color: Colors.white.withOpacity(0.6),
                           letterSpacing: 1,
-                          fontWeight: FontWeight.w300,
                         ),
                       ),
                       
-                      const SizedBox(height: 50),
+                      SizedBox(height: isSmallScreen ? 40 : 60),
                       
-                      // Feature Cards Row - Exactly like image
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      // Feature Cards
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        alignment: WrapAlignment.center,
                         children: [
-                          _buildFeatureCard(
-                            icon: Icons.bolt,
-                            title: 'Fast &',
-                            subtitle: 'Efficient',
-                            color: const Color(0xFF00D9FF),
+                          _buildGlassCard(
+                            icon: Icons.speed_rounded,
+                            title: 'Fast',
+                            subtitle: 'Workflow',
+                            color: const Color(0xFF667eea),
+                            isSmall: isSmallScreen,
                           ),
-                          const SizedBox(width: 12),
-                          _buildFeatureCard(
-                            icon: Icons.lock,
-                            title: 'Secure &',
-                            subtitle: 'Private',
-                            color: const Color(0xFF9D4EDD),
+                          _buildGlassCard(
+                            icon: Icons.security_rounded,
+                            title: 'Secure',
+                            subtitle: 'Data',
+                            color: const Color(0xFF764ba2),
+                            isSmall: isSmallScreen,
                           ),
-                          const SizedBox(width: 12),
-                          _buildFeatureCard(
-                            icon: Icons.cloud,
+                          _buildGlassCard(
+                            icon: Icons.cloud_done_rounded,
                             title: 'Cloud',
-                            subtitle: 'Synced',
-                            color: const Color(0xFF00D9FF),
+                            subtitle: 'Backup',
+                            color: const Color(0xFFa8edea),
+                            isSmall: isSmallScreen,
                           ),
                         ],
                       ),
                       
-                      const SizedBox(height: 60),
+                      SizedBox(height: isSmallScreen ? 50 : 70),
                       
-                      // Get Started Button - Purple gradient with arrow
+                      // Get Started Button
                       AnimatedBuilder(
                         animation: _pulseController,
                         builder: (context, child) {
@@ -221,8 +259,8 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                               borderRadius: BorderRadius.circular(30),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF9D4EDD).withOpacity(
-                                    0.4 + (_pulseController.value * 0.2),
+                                  color: const Color(0xFF667eea).withOpacity(
+                                    0.3 + (_pulseController.value * 0.2),
                                   ),
                                   blurRadius: 20 + (_pulseController.value * 10),
                                   spreadRadius: 2,
@@ -236,10 +274,7 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                                     pageBuilder: (context, animation, secondaryAnimation) =>
                                         const LoginSignupChoice(),
                                     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                      return FadeTransition(
-                                        opacity: animation,
-                                        child: child,
-                                      );
+                                      return FadeTransition(opacity: animation, child: child);
                                     },
                                     transitionDuration: const Duration(milliseconds: 400),
                                   ),
@@ -257,31 +292,28 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                               child: Ink(
                                 decoration: BoxDecoration(
                                   gradient: const LinearGradient(
-                                    begin: Alignment.centerLeft,
-                                    end: Alignment.centerRight,
-                                    colors: [
-                                      Color(0xFF7B2CBF),
-                                      Color(0xFF9D4EDD),
-                                      Color(0xFFE040FB),
-                                    ],
+                                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
                                   ),
                                   borderRadius: BorderRadius.circular(30),
                                 ),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-                                  child: const Row(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isSmallScreen ? 40 : 50,
+                                    vertical: isSmallScreen ? 16 : 18,
+                                  ),
+                                  child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
                                         'Get Started',
                                         style: TextStyle(
-                                          fontSize: 16,
+                                          fontSize: isSmallScreen ? 16 : 18,
                                           fontWeight: FontWeight.w600,
-                                          letterSpacing: 0.5,
+                                          letterSpacing: 1,
                                         ),
                                       ),
-                                      SizedBox(width: 8),
-                                      Icon(Icons.arrow_forward, size: 20),
+                                      const SizedBox(width: 10),
+                                      const Icon(Icons.arrow_forward_rounded, size: 22),
                                     ],
                                   ),
                                 ),
@@ -291,7 +323,7 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                         },
                       ),
                       
-                      const SizedBox(height: 60),
+                      SizedBox(height: isSmallScreen ? 40 : 60),
                     ],
                   ),
                 ),
@@ -303,18 +335,22 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildFeatureCard({
+  Widget _buildGlassCard({
     required IconData icon,
     required String title,
     required String subtitle,
     required Color color,
+    required bool isSmall,
   }) {
     return Container(
-      width: 95,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+      width: isSmall ? 95 : 110,
+      padding: EdgeInsets.symmetric(
+        vertical: isSmall ? 16 : 20,
+        horizontal: isSmall ? 12 : 16,
+      ),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: Colors.white.withOpacity(0.1),
           width: 1,
@@ -322,105 +358,55 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
         boxShadow: [
           BoxShadow(
             color: color.withOpacity(0.1),
-            blurRadius: 10,
-            spreadRadius: 1,
+            blurRadius: 20,
+            spreadRadius: 2,
           ),
         ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Icon with gradient background
           Container(
-            width: 45,
-            height: 45,
+            width: isSmall ? 45 : 50,
+            height: isSmall ? 45 : 50,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  color,
-                  color.withOpacity(0.7),
-                ],
+                colors: [color, color.withOpacity(0.7)],
               ),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(15),
               boxShadow: [
                 BoxShadow(
-                  color: color.withOpacity(0.4),
-                  blurRadius: 8,
+                  color: color.withOpacity(0.3),
+                  blurRadius: 10,
                   spreadRadius: 1,
                 ),
               ],
             ),
-            child: Icon(icon, color: Colors.white, size: 24),
+            child: Icon(icon, color: Colors.white, size: isSmall ? 24 : 26),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: isSmall ? 10 : 14),
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+            style: TextStyle(
+              fontSize: isSmall ? 12 : 14,
+              fontWeight: FontWeight.w600,
               color: Colors.white,
             ),
           ),
+          const SizedBox(height: 2),
           Text(
             subtitle,
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w400,
-              color: Colors.white.withOpacity(0.7),
+              fontSize: isSmall ? 10 : 12,
+              color: Colors.white.withOpacity(0.6),
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _AnimatedStar extends StatelessWidget {
-  final int index;
-  final AnimationController controller;
-
-  const _AnimatedStar({
-    required this.index,
-    required this.controller,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final random = math.Random(index);
-    final size = 1.0 + random.nextDouble() * 2;
-    final left = random.nextDouble() * MediaQuery.of(context).size.width;
-    final top = random.nextDouble() * MediaQuery.of(context).size.height;
-    
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, child) {
-        final opacity = 0.2 + (math.sin((controller.value + random.nextDouble()) * 2 * math.pi) * 0.3);
-        return Positioned(
-          left: left,
-          top: top,
-          child: Opacity(
-            opacity: opacity.clamp(0.1, 0.6),
-            child: Container(
-              width: size,
-              height: size,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.white.withOpacity(0.5),
-                    blurRadius: 2,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 }

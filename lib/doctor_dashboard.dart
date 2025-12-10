@@ -32,6 +32,7 @@ import 'package:modi/lab_reports_management.dart';
 import 'package:modi/doctor_schedule_calendar.dart';
 import 'package:modi/follow_up_appointments.dart';
 import 'package:modi/birthday_notification_widget.dart';
+import 'package:modi/widgets/storage_alert_widget.dart';
 
 class MenuItem {
   final IconData icon;
@@ -87,6 +88,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
   List<Patient> patients = [];
   int _notificationCount = 0;
   int _followUpCount = 0;
+  bool _showStorageAlert = false;
   
   // Getter for doctor info
   Staff? get loggedInDoctor => widget.loggedInDoctor;
@@ -111,6 +113,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
     MenuItem(icon: Icons.feedback_rounded, label: 'Patient Feedback', route: 'PatientFeedbackSystem'),
     MenuItem(icon: Icons.analytics_rounded, label: 'Reports & Analytics', route: 'ReportsAnalytics'),
     MenuItem(icon: Icons.people_outline_rounded, label: 'Staff Management', route: 'StaffManagement'),
+    MenuItem(icon: Icons.storage_rounded, label: 'Storage Status', route: 'StorageAlert'),
     MenuItem(icon: Icons.cake_rounded, label: 'Birthday Wishes', route: 'BirthdayCalendar'),
     MenuItem(icon: Icons.settings_rounded, label: 'Settings', route: 'SettingsConfiguration'),
     MenuItem(icon: Icons.logout_rounded, label: 'Logout', route: null),
@@ -121,6 +124,14 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _loadPatients();
+    _checkStorageStatus();
+  }
+  
+  Future<void> _checkStorageStatus() async {
+    final shouldShow = await StorageAlertService.shouldShowWarning();
+    if (mounted) {
+      setState(() => _showStorageAlert = shouldShow);
+    }
   }
 
   // Load patients from database
@@ -302,6 +313,23 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
           ],
         );
       },
+    );
+  }
+  
+  void _showStorageAlertDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 450, maxHeight: 600),
+          child: SingleChildScrollView(
+            child: StorageAlertWidget(
+              onDismiss: () => Navigator.pop(context),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -487,6 +515,9 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
       case 'BirthdayCalendar':
         page = const BirthdayNotificationWidget(showAsCard: false);
         break;
+      case 'StorageAlert':
+        _showStorageAlertDialog();
+        return;
     }
 
     if (page != null) {
@@ -740,7 +771,10 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
                   },
                   child: _buildTopBarIcon(Icons.how_to_reg, 0),
                 ),
-                
+                const SizedBox(width: 8),
+                CompactStorageIndicator(
+                  onTap: _showStorageAlertDialog,
+                ),
               ],
             ),
           ),

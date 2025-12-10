@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart' as path;
 import 'waiting_room_display.dart';
 import 'sms_integration.dart';
 import 'whatsapp_integration.dart';
@@ -7,6 +12,7 @@ import 'email_features.dart';
 import 'lab_reports_management.dart';
 import 'patient_feedback_system.dart';
 import 'doctor_schedule_calendar.dart';
+import 'database_helper.dart';
 
 class SettingsConfiguration extends StatefulWidget {
   const SettingsConfiguration({super.key});
@@ -17,6 +23,13 @@ class SettingsConfiguration extends StatefulWidget {
 
 class _SettingsConfigurationState extends State<SettingsConfiguration> {
   bool _isLoading = true;
+  
+  // Storage Info
+  double _databaseSizeMB = 0.0;
+  int _totalPatients = 0;
+  int _totalConsultations = 0;
+  int _totalPayments = 0;
+  double _averagePerPatient = 0.0;
   
   // Profile settings
   final TextEditingController _nameController = TextEditingController();
@@ -61,6 +74,34 @@ class _SettingsConfigurationState extends State<SettingsConfiguration> {
   void initState() {
     super.initState();
     _loadSettings();
+    _loadStorageInfo();
+  }
+
+  Future<void> _loadStorageInfo() async {
+    try {
+      // Get database size
+      if (!kIsWeb) {
+        final dbPath = await getDatabasesPath();
+        final dbFile = File(path.join(dbPath, 'patients.db'));
+        if (await dbFile.exists()) {
+          final size = await dbFile.length();
+          _databaseSizeMB = size / (1024 * 1024);
+        }
+      }
+      
+      // Get counts
+      final patients = await DatabaseHelper.instance.getAllPatients();
+      _totalPatients = patients.length;
+      
+      // Calculate average per patient
+      if (_totalPatients > 0) {
+        _averagePerPatient = (_databaseSizeMB * 1024) / _totalPatients; // in KB
+      }
+      
+      if (mounted) setState(() {});
+    } catch (e) {
+      print('Error loading storage info: $e');
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -204,6 +245,10 @@ class _SettingsConfigurationState extends State<SettingsConfiguration> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // Storage Info Section
+                              _buildStorageInfoCard(),
+                              const SizedBox(height: 20),
+                              
                               // Profile Settings
                               _buildSectionCard(
                                 title: '👨‍⚕️ Profile Settings',
@@ -354,6 +399,178 @@ class _SettingsConfigurationState extends State<SettingsConfiguration> {
               fontSize: 22,
               fontWeight: FontWeight.bold,
               color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStorageInfoCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF667eea).withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.storage, color: Colors.white, size: 24),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                '💾 Storage Information',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          
+          // Storage Stats Grid
+          Row(
+            children: [
+              Expanded(
+                child: _buildStorageStat(
+                  'Database Size',
+                  '${_databaseSizeMB.toStringAsFixed(2)} MB',
+                  Icons.folder,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStorageStat(
+                  'Total Patients',
+                  '$_totalPatients',
+                  Icons.people,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStorageStat(
+                  'Avg per Patient',
+                  '${_averagePerPatient.toStringAsFixed(1)} KB',
+                  Icons.person,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStorageStat(
+                  'Est. 1 Customer',
+                  '~100 KB',
+                  Icons.data_usage,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Info Box
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, color: Colors.white70, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    kIsWeb 
+                      ? 'Web: Data stored in browser storage'
+                      : '1 customer with photo ≈ 100 KB\n10,000 customers ≈ 1 GB',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // Refresh Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _loadStorageInfo,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Refresh Storage Info'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF667eea),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStorageStat(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: Colors.white70, size: 16),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ],

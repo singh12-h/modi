@@ -232,32 +232,41 @@ class _StorageAlertWidgetState extends State<StorageAlertWidget> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              isCritical ? '⚠️ Storage Critical!' : isWarning ? '⚠️ Storage Low' : '💾 Storage Status',
-                              style: TextStyle(fontSize: isSmall ? 18 : 22, fontWeight: FontWeight.bold, color: const Color(0xFF1A1A2E)),
+                              isCritical ? 'Storage Critical!' : isWarning ? 'Storage Low' : 'Storage Status',
+                              style: TextStyle(fontSize: isSmall ? 16 : 20, fontWeight: FontWeight.bold, color: const Color(0xFF1A1A2E)),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 6),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(colors: [accent, accent.withOpacity(0.5)]),
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(16),
                                 border: Border.all(color: primary.withOpacity(0.2)),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.local_hospital_rounded, size: 14, color: primary),
-                                  const SizedBox(width: 5),
-                                  Text('MODI Medical Database', style: TextStyle(fontSize: 11, color: primary, fontWeight: FontWeight.w600)),
-                                ],
+                              child: Text(
+                                'MODI Medical', 
+                                style: TextStyle(fontSize: isSmall ? 9 : 11, color: primary, fontWeight: FontWeight.w600),
+                                maxLines: 1,
                               ),
                             ),
                           ],
                         ),
                       ),
                       if (_notificationCount > 0)
-                        IconButton(onPressed: _clearNotification, icon: Icon(Icons.notifications_off_outlined, color: Colors.grey.shade500, size: 22)),
-                      IconButton(onPressed: _dismissAlert, icon: Icon(Icons.close_rounded, color: Colors.grey.shade500, size: 22)),
+                        IconButton(
+                          onPressed: _clearNotification, 
+                          icon: Icon(Icons.notifications_off_outlined, color: Colors.grey.shade500, size: 20),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        ),
+                      IconButton(
+                        onPressed: _dismissAlert, 
+                        icon: Icon(Icons.close_rounded, color: Colors.grey.shade500, size: 20),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      ),
                     ],
                   ),
                   
@@ -376,10 +385,10 @@ class _StorageAlertWidgetState extends State<StorageAlertWidget> {
                     Row(
                       children: [
                         Expanded(child: _buildColorfulContactBtn(Icons.email_rounded, 'Email', const Color(0xFF5C6BC0), _contactViaEmail, isSmall)),
-                        const SizedBox(width: 12),
+                        SizedBox(width: isSmall ? 6 : 12),
                         Expanded(child: _buildColorfulContactBtn(Icons.phone_rounded, 'Call', const Color(0xFF26A69A), _contactViaPhone, isSmall)),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildColorfulContactBtn(Icons.chat_rounded, 'WhatsApp', const Color(0xFF66BB6A), _contactViaWhatsApp, isSmall)),
+                        SizedBox(width: isSmall ? 6 : 12),
+                        Expanded(child: _buildColorfulContactBtn(Icons.chat_rounded, 'Chat', const Color(0xFF66BB6A), _contactViaWhatsApp, isSmall)),
                       ],
                     ),
                     
@@ -399,18 +408,25 @@ class _StorageAlertWidgetState extends State<StorageAlertWidget> {
                           onTap: _contactViaWhatsApp,
                           borderRadius: BorderRadius.circular(16),
                           child: Padding(
-                            padding: EdgeInsets.symmetric(vertical: isSmall ? 16 : 20),
+                            padding: EdgeInsets.symmetric(vertical: isSmall ? 14 : 18, horizontal: 16),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.rocket_launch_rounded, color: Colors.white, size: 22),
-                                const SizedBox(width: 10),
-                                Text('Upgrade Storage Now', style: TextStyle(fontSize: isSmall ? 15 : 17, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.3)),
-                                const SizedBox(width: 8),
+                                Icon(Icons.rocket_launch_rounded, color: Colors.white, size: isSmall ? 18 : 22),
+                                SizedBox(width: isSmall ? 6 : 10),
+                                Flexible(
+                                  child: Text(
+                                    isSmall ? 'Upgrade Now' : 'Upgrade Storage Now', 
+                                    style: TextStyle(fontSize: isSmall ? 13 : 16, fontWeight: FontWeight.bold, color: Colors.white),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                SizedBox(width: isSmall ? 4 : 8),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.25), borderRadius: BorderRadius.circular(10)),
-                                  child: const Text('PRO', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                  padding: EdgeInsets.symmetric(horizontal: isSmall ? 6 : 8, vertical: 3),
+                                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.25), borderRadius: BorderRadius.circular(8)),
+                                  child: Text('PRO', style: TextStyle(color: Colors.white, fontSize: isSmall ? 8 : 10, fontWeight: FontWeight.bold)),
                                 ),
                               ],
                             ),

@@ -408,21 +408,32 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
   }
   
   void _showStorageAlertDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 450, maxHeight: 600),
-          child: SingleChildScrollView(
-            child: StorageAlertWidget(
-              onDismiss: () => Navigator.pop(context),
-            ),
+  final screenWidth = MediaQuery.of(context).size.width;
+  final screenHeight = MediaQuery.of(context).size.height;
+  final isMobile = screenWidth < 600;
+  
+  showDialog(
+    context: context,
+    builder: (context) => Dialog(
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 16 : 40,
+        vertical: isMobile ? 24 : 40,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: isMobile ? screenWidth - 32 : 450,
+          maxHeight: screenHeight * 0.85,
+        ),
+        child: SingleChildScrollView(
+          child: StorageAlertWidget(
+            onDismiss: () => Navigator.pop(context),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {

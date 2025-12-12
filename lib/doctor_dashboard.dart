@@ -868,20 +868,18 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
               },
               child: _buildTopBarIcon(Icons.notifications_rounded, _notificationCount),
             ),
-            // Hide verification icon on mobile to save space
-            if (!Responsive.isMobile(context)) ...[
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const AppointmentVerificationList()),
-                  );
-                  _refreshPatients();
-                },
-                child: _buildTopBarIcon(Icons.how_to_reg, 0),
-              ),
-            ],
+            // Appointment verification icon - visible on all devices
+            SizedBox(width: Responsive.isMobile(context) ? 4 : 8),
+            GestureDetector(
+              onTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AppointmentVerificationList()),
+                );
+                _refreshPatients();
+              },
+              child: _buildTopBarIcon(Icons.how_to_reg, 0),
+            ),
             SizedBox(width: Responsive.isMobile(context) ? 4 : 8),
             // Storage indicator - simple icon on mobile
             if (Responsive.isMobile(context))

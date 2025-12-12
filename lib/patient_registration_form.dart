@@ -39,6 +39,10 @@ class _PatientRegistrationFormState extends State<PatientRegistrationForm> {
   bool _isPreviousPatient = false; // Track if patient visited before
   Patient? _previousVisit; // Store previous visit data
   late String _token = 'Loading...'; // Initial state
+  
+  // Name search functionality
+  List<Patient> _nameSearchResults = [];
+  bool _showNameSuggestions = false;
 
   @override
   void initState() {
@@ -49,7 +53,63 @@ class _PatientRegistrationFormState extends State<PatientRegistrationForm> {
     }
     // Listen to mobile number changes to detect previous patients
     _mobileController.addListener(_checkPreviousVisit);
+    // Listen to name changes for autocomplete search
+    _nameController.addListener(_onNameChanged);
   }
+
+  // Name search for autocomplete
+  void _onNameChanged() async {
+    final query = _nameController.text;
+    if (query.length >= 2) {
+      final results = await DatabaseHelper.instance.searchPatientsByName(query);
+      setState(() {
+        _nameSearchResults = results;
+        _showNameSuggestions = results.isNotEmpty;
+      });
+    } else {
+      setState(() {
+        _nameSearchResults = [];
+        _showNameSuggestions = false;
+      });
+    }
+  }
+
+  // Select patient from name suggestions
+  void _selectPatientFromSuggestion(Patient patient) {
+    setState(() {
+      _nameController.text = patient.name;
+      _ageController.text = patient.age;
+      _selectedGender = patient.gender;
+      _mobileController.text = patient.mobile;
+      if (patient.address != null) _addressController.text = patient.address!;
+      if (patient.medicalHistory != null) _medicalHistoryController.text = patient.medicalHistory!;
+      if (patient.emergencyContact != null) _emergencyContactController.text = patient.emergencyContact!;
+      _selectedBirthDate = patient.birthDate;
+      _isPreviousPatient = true;
+      _previousVisit = patient;
+      _visitType = 'Follow-up';
+      _showNameSuggestions = false;
+      _nameSearchResults = [];
+      
+      // Load patient photo
+      if (patient.photoPath != null && patient.photoPath!.isNotEmpty) {
+        if (kIsWeb) {
+          _webImagePath = patient.photoPath;
+        } else {
+          _selectedImage = File(patient.photoPath!);
+        }
+      }
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('✅ Welcome back ${patient.name}! Photo & data loaded.'),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
 
   Future<void> _checkPreviousVisit() async {
     final mobile = _mobileController.text;
@@ -952,7 +1012,115 @@ Thank you for choosing MODI CLINIC! 🙏''';
                                 focusNode: _nameFocus,
                                 nextFocus: _ageFocus,
                               ),
+                              // Name Search Suggestions
+                              if (_showNameSuggestions && _nameSearchResults.isNotEmpty)
+                                Container(
+                                  margin: const EdgeInsets.only(top: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: const Color(0xFF8E2DE2).withOpacity(0.3)),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.purple.withOpacity(0.1),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.all(8),
+                                        child: Text(
+                                          '🔍 Existing Patients Found (${_nameSearchResults.length})',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                      const Divider(height: 1),
+                                      ..._nameSearchResults.map((patient) => InkWell(
+                                        onTap: () => _selectPatientFromSuggestion(patient),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                          decoration: BoxDecoration(
+                                            border: Border(
+                                              bottom: BorderSide(color: Colors.grey.shade200),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              // Patient Photo
+                                              CircleAvatar(
+                                                radius: 22,
+                                                backgroundColor: const Color(0xFFE0E7FF),
+                                                backgroundImage: patient.photoPath != null
+                                                    ? (kIsWeb 
+                                                        ? NetworkImage(patient.photoPath!) as ImageProvider
+                                                        : FileImage(File(patient.photoPath!)))
+                                                    : null,
+                                                child: patient.photoPath == null
+                                                    ? Text(
+                                                        patient.name.isNotEmpty ? patient.name[0].toUpperCase() : '?',
+                                                        style: const TextStyle(
+                                                          fontWeight: FontWeight.bold,
+                                                          color: Color(0xFF8E2DE2),
+                                                        ),
+                                                      )
+                                                    : null,
+                                              ),
+                                              const SizedBox(width: 12),
+                                              // Patient Info
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      patient.name,
+                                                      style: const TextStyle(
+                                                        fontWeight: FontWeight.w600,
+                                                        fontSize: 14,
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      '${patient.age}yrs • ${patient.gender} • ${patient.mobile}',
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        color: Colors.grey[600],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              // Visit count badge
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFF10B981).withOpacity(0.1),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                child: Text(
+                                                  '${patient.consultationCount ?? 0} visits',
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    color: Color(0xFF10B981),
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      )),
+                                    ],
+                                  ),
+                                ),
                               const SizedBox(height: 16),
+
                               
                               // Birthdate Picker with Auto Age Calculation
                               _buildBirthDatePicker(),

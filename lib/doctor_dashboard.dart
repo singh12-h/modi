@@ -33,6 +33,8 @@ import 'package:modi/doctor_schedule_calendar.dart';
 import 'package:modi/follow_up_appointments.dart';
 import 'package:modi/birthday_notification_widget.dart';
 import 'package:modi/widgets/storage_alert_widget.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'dart:async';
 
 class MenuItem {
   final IconData icon;
@@ -89,6 +91,8 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
   int _notificationCount = 0;
   int _followUpCount = 0;
   bool _showStorageAlert = false;
+  bool _isConnected = true;
+  late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
   
   // Getter for doctor info
   Staff? get loggedInDoctor => widget.loggedInDoctor;
@@ -125,6 +129,10 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
     _tabController = TabController(length: 3, vsync: this);
     _loadPatients();
     _checkStorageStatus();
+    _checkConnectivity();
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((results) {
+      _handleConnectivityChange(results);
+    });
   }
   
   Future<void> _checkStorageStatus() async {
@@ -132,6 +140,94 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
     if (mounted) {
       setState(() => _showStorageAlert = shouldShow);
     }
+  }
+
+  Future<void> _checkConnectivity() async {
+    final results = await Connectivity().checkConnectivity();
+    _handleConnectivityChange(results);
+  }
+
+  void _handleConnectivityChange(List<ConnectivityResult> results) {
+    final isConnected = results.isNotEmpty && !results.contains(ConnectivityResult.none);
+    if (mounted && _isConnected != isConnected) {
+      setState(() => _isConnected = isConnected);
+      if (!isConnected) {
+        _showNoInternetDialog();
+      }
+    }
+  }
+
+  void _showNoInternetDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.wifi_off_rounded,
+                size: 60,
+                color: Colors.red,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'No Internet Connection',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E3A8A),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Please check your internet connection and try again.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                _checkConnectivity();
+              },
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3B82F6),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription.cancel();
+    _tabController.dispose();
+    super.dispose();
   }
 
   // Load patients from database
@@ -209,11 +305,6 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
     await _loadPatients();
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
 
   Future<void> _updatePatientStatus(String patientId, PatientStatus newStatus) async {
     final patient = patients.firstWhere((p) => p.id == patientId);
@@ -368,35 +459,17 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
   Widget _buildMobileLayout() {
     return Stack(
       children: [
-        // Premium Dark Gradient Background
+        // Gray Gradient Background
         Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
               colors: [
-                Color(0xFF0F0F23), // Very Dark Navy
-                Color(0xFF1A1A3E), // Dark Purple Navy
-                Color(0xFF0D1B2A), // Deep Dark Blue
+                Color(0xFFD0D0D0), // Darker Gray
+                Color(0xFFC5C5C5), // Medium Dark Gray
+                Color(0xFFB8B8B8), // Dark Gray
               ],
-            ),
-          ),
-        ),
-        // Subtle Purple Glow
-        Positioned(
-          top: -50,
-          right: -50,
-          child: Container(
-            width: 200,
-            height: 200,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  const Color(0xFF6B21A8).withOpacity(0.2),
-                  Colors.transparent,
-                ],
-              ),
             ),
           ),
         ),
@@ -405,33 +478,97 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
           children: [
             _buildTopBar(),
             Expanded(
-              child: Container(
-                margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1A1A2E).withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.05),
-                    width: 1,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 12),
-                    _buildStatsCards(),
-                    _buildTabsSection(),
-                    Expanded(
-                      child: TabBarView(
-                        controller: _tabController,
-                        children: [
-                          _buildPatientGrid('Waiting'),
-                          _buildPatientGrid('In Progress'),
-                          _buildPatientGrid('Completed'),
-                        ],
-                      ),
+              child: Stack(
+                children: [
+                  // Main Container
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                    child: Stack(
+                      children: [
+                        // Decorative Medical Icons/Emojis Pattern
+                        Positioned(
+                          top: 20,
+                          left: 20,
+                          child: Text('💊', style: TextStyle(fontSize: 20, color: Colors.grey.withOpacity(0.25))),
+                        ),
+                        Positioned(
+                          top: 80,
+                          right: 30,
+                          child: Text('🩺', style: TextStyle(fontSize: 22, color: Colors.grey.withOpacity(0.22))),
+                        ),
+                        Positioned(
+                          top: 150,
+                          left: 50,
+                          child: Text('❤️', style: TextStyle(fontSize: 18, color: Colors.grey.withOpacity(0.20))),
+                        ),
+                        Positioned(
+                          top: 60,
+                          left: 120,
+                          child: Text('💉', style: TextStyle(fontSize: 16, color: Colors.grey.withOpacity(0.22))),
+                        ),
+                        Positioned(
+                          bottom: 100,
+                          right: 50,
+                          child: Text('🏥', style: TextStyle(fontSize: 24, color: Colors.grey.withOpacity(0.20))),
+                        ),
+                        Positioned(
+                          bottom: 180,
+                          left: 30,
+                          child: Text('💊', style: TextStyle(fontSize: 18, color: Colors.grey.withOpacity(0.22))),
+                        ),
+                        Positioned(
+                          top: 200,
+                          right: 80,
+                          child: Text('🩹', style: TextStyle(fontSize: 20, color: Colors.grey.withOpacity(0.20))),
+                        ),
+                        Positioned(
+                          bottom: 50,
+                          left: 100,
+                          child: Text('⚕️', style: TextStyle(fontSize: 22, color: Colors.grey.withOpacity(0.22))),
+                        ),
+                        Positioned(
+                          top: 120,
+                          right: 120,
+                          child: Text('🧬', style: TextStyle(fontSize: 16, color: Colors.grey.withOpacity(0.20))),
+                        ),
+                        Positioned(
+                          bottom: 140,
+                          right: 20,
+                          child: Text('💊', style: TextStyle(fontSize: 14, color: Colors.grey.withOpacity(0.22))),
+                        ),
+                        // Main Content
+                        Column(
+                          children: [
+                            const SizedBox(height: 12),
+                            _buildStatsCards(),
+                            _buildTabsSection(),
+                            Expanded(
+                              child: TabBarView(
+                                controller: _tabController,
+                                children: [
+                                  _buildPatientGrid('Waiting'),
+                                  _buildPatientGrid('In Progress'),
+                                  _buildPatientGrid('Completed'),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -529,150 +666,128 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
   }
 
   Widget _buildDesktopLayout() {
-    return Stack(
-      children: [
-        // Premium Dark Gradient Background
-        Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF0F0F23), // Very Dark Navy
-                Color(0xFF1A1A3E), // Dark Purple Navy
-                Color(0xFF0D1B2A), // Deep Dark Blue
-                Color(0xFF1B263B), // Dark Slate
-              ],
-              stops: [0.0, 0.3, 0.7, 1.0],
-            ),
-          ),
-        ),
-        // Subtle Mesh Gradient Overlay
-        Positioned.fill(
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment.topLeft,
-                radius: 1.5,
-                colors: [
-                  const Color(0xFF6B21A8).withOpacity(0.15),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-        Positioned.fill(
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment.bottomRight,
-                radius: 1.2,
-                colors: [
-                  const Color(0xFF0EA5E9).withOpacity(0.1),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-        // Decorative Circles
-        Positioned(
-          top: -100,
-          right: -100,
-          child: Container(
-            width: 300,
-            height: 300,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  const Color(0xFFA855F7).withOpacity(0.1),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          bottom: -50,
-          left: -50,
-          child: Container(
-            width: 200,
-            height: 200,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  const Color(0xFF22D3EE).withOpacity(0.08),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-        // Main Content
-        Row(
-          children: [
-            _buildModernSidebar(),
-            Expanded(
-              child: Column(
-                children: [
-                  _buildTopBar(),
-                  Expanded(
-                    child: Container(
-                      margin: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.03),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.08),
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
-                            blurRadius: 30,
-                            spreadRadius: 5,
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(24),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1A1A2E).withOpacity(0.7),
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                            child: Column(
-                              children: [
-                                _buildStatsCards(),
-                                _buildTabsSection(),
-                                Expanded(
-                                  child: TabBarView(
-                                    controller: _tabController,
-                                    children: [
-                                      _buildPatientGrid('Waiting'),
-                                      _buildPatientGrid('In Progress'),
-                                      _buildPatientGrid('Completed'),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFFD0D0D0), // Darker Gray
+            Color(0xFFC5C5C5), // Medium Dark Gray
+            Color(0xFFB8B8B8), // Dark Gray
           ],
         ),
-      ],
+      ),
+      child: Row(
+        children: [
+          _buildModernSidebar(),
+          Expanded(
+            child: Column(
+              children: [
+                _buildTopBar(),
+                Expanded(
+                  child: Container(
+                    margin: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 20,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      children: [
+                        // Decorative Medical Icons/Emojis Pattern
+                        Positioned(
+                          top: 30,
+                          left: 40,
+                          child: Text('💊', style: TextStyle(fontSize: 28, color: Colors.grey.withOpacity(0.22))),
+                        ),
+                        Positioned(
+                          top: 100,
+                          right: 60,
+                          child: Text('🩺', style: TextStyle(fontSize: 32, color: Colors.grey.withOpacity(0.20))),
+                        ),
+                        Positioned(
+                          top: 180,
+                          left: 100,
+                          child: Text('❤️', style: TextStyle(fontSize: 24, color: Colors.grey.withOpacity(0.18))),
+                        ),
+                        Positioned(
+                          top: 80,
+                          left: 200,
+                          child: Text('💉', style: TextStyle(fontSize: 22, color: Colors.grey.withOpacity(0.20))),
+                        ),
+                        Positioned(
+                          bottom: 120,
+                          right: 100,
+                          child: Text('🏥', style: TextStyle(fontSize: 30, color: Colors.grey.withOpacity(0.18))),
+                        ),
+                        Positioned(
+                          bottom: 200,
+                          left: 60,
+                          child: Text('💊', style: TextStyle(fontSize: 24, color: Colors.grey.withOpacity(0.20))),
+                        ),
+                        Positioned(
+                          top: 250,
+                          right: 180,
+                          child: Text('🩹', style: TextStyle(fontSize: 26, color: Colors.grey.withOpacity(0.18))),
+                        ),
+                        Positioned(
+                          bottom: 80,
+                          left: 180,
+                          child: Text('⚕️', style: TextStyle(fontSize: 28, color: Colors.grey.withOpacity(0.20))),
+                        ),
+                        Positioned(
+                          top: 150,
+                          right: 280,
+                          child: Text('🧬', style: TextStyle(fontSize: 22, color: Colors.grey.withOpacity(0.18))),
+                        ),
+                        Positioned(
+                          bottom: 160,
+                          right: 40,
+                          child: Text('💊', style: TextStyle(fontSize: 20, color: Colors.grey.withOpacity(0.20))),
+                        ),
+                        Positioned(
+                          top: 60,
+                          right: 350,
+                          child: Text('🩺', style: TextStyle(fontSize: 18, color: Colors.grey.withOpacity(0.18))),
+                        ),
+                        Positioned(
+                          bottom: 50,
+                          left: 300,
+                          child: Text('💉', style: TextStyle(fontSize: 20, color: Colors.grey.withOpacity(0.20))),
+                        ),
+                        // Main Content
+                        Column(
+                          children: [
+                            _buildStatsCards(),
+                            _buildTabsSection(),
+                            Expanded(
+                              child: TabBarView(
+                                controller: _tabController,
+                                children: [
+                                  _buildPatientGrid('Waiting'),
+                                  _buildPatientGrid('In Progress'),
+                                  _buildPatientGrid('Completed'),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -683,101 +798,109 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
   Widget _buildTopBar() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: Responsive.isMobile(context) ? 12 : 24, 
-              vertical: Responsive.isMobile(context) ? 12 : 20
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: Responsive.isMobile(context) ? 12 : 24, 
+          vertical: Responsive.isMobile(context) ? 12 : 16
+        ),
+        decoration: BoxDecoration(
+          color: const Color(0xFF374151), // Dark gray matching sidebar
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 15,
+              offset: const Offset(0, 4),
             ),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.1),
-                width: 1,
+          ],
+        ),
+        child: Row(
+          children: [
+            if (Responsive.isMobile(context)) ...[
+              IconButton(
+                icon: const Icon(Icons.menu, color: Colors.white),
+                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
-            ),
-            child: Row(
-              children: [
-                if (Responsive.isMobile(context)) ...[
-                  IconButton(
-                    icon: const Icon(Icons.menu, color: Colors.white),
-                    onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.search, color: Colors.white),
+                onPressed: _showSearchOverlay,
+              ),
+            ] else ...[
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.search, color: Colors.white),
-                    onPressed: _showSearchOverlay,
-                  ),
-                ] else ...[
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(30),
-                        border: Border.all(
-                          color: const Color(0xFF22D3EE).withOpacity(0.5),
-                          width: 1,
-                        ),
-                      ),
-                      child: TextField(
-                        style: const TextStyle(color: Colors.white),
-                        onTap: () => _showSearchOverlay(),
-                        readOnly: true,
-                        decoration: InputDecoration(
-                          hintText: 'Search patients, medicines...',
-                          hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
-                          border: InputBorder.none,
-                          icon: Icon(Icons.search, color: Colors.white.withOpacity(0.8)),
-                        ),
-                      ),
+                  child: TextField(
+                    style: const TextStyle(color: Colors.white),
+                    onTap: () => _showSearchOverlay(),
+                    readOnly: true,
+                    decoration: InputDecoration(
+                      hintText: 'Search patients, medicines...',
+                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+                      border: InputBorder.none,
+                      icon: Icon(Icons.search, color: Colors.white.withOpacity(0.8)),
                     ),
                   ),
-                ],
-                
-                const SizedBox(width: 8),
-                
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const FollowUpAppointments()),
-                    );
-                  },
-                  child: _buildTopBarIcon(Icons.event_available, _followUpCount),
                 ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const NotificationsCenter()),
-                    );
-                  },
-                  child: _buildTopBarIcon(Icons.notifications_rounded, _notificationCount),
-                ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const AppointmentVerificationList()),
-                    );
-                    _refreshPatients();
-                  },
-                  child: _buildTopBarIcon(Icons.how_to_reg, 0),
-                ),
-                const SizedBox(width: 8),
-                CompactStorageIndicator(
-                  onTap: _showStorageAlertDialog,
-                ),
-              ],
+              ),
+            ],
+            SizedBox(width: Responsive.isMobile(context) ? 4 : 8),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const FollowUpAppointments()),
+                );
+              },
+              child: _buildTopBarIcon(Icons.event_available, _followUpCount),
             ),
-          ),
+            SizedBox(width: Responsive.isMobile(context) ? 4 : 8),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const NotificationsCenter()),
+                );
+              },
+              child: _buildTopBarIcon(Icons.notifications_rounded, _notificationCount),
+            ),
+            // Hide verification icon on mobile to save space
+            if (!Responsive.isMobile(context)) ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AppointmentVerificationList()),
+                  );
+                  _refreshPatients();
+                },
+                child: _buildTopBarIcon(Icons.how_to_reg, 0),
+              ),
+            ],
+            SizedBox(width: Responsive.isMobile(context) ? 4 : 8),
+            // Storage indicator - simple icon on mobile
+            if (Responsive.isMobile(context))
+              GestureDetector(
+                onTap: _showStorageAlertDialog,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.storage_rounded, color: Colors.white, size: 20),
+                ),
+              )
+            else
+              CompactStorageIndicator(
+                onTap: _showStorageAlertDialog,
+              ),
+          ],
         ),
       ),
     );
@@ -787,12 +910,12 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
     return Stack(
       children: [
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.withOpacity(0.15), // Translucent white
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: Colors.white, size: 24),
+          child: Icon(icon, color: Colors.white, size: 22), // White icons
         ),
         if (badge > 0)
           Positioned(
@@ -989,67 +1112,33 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOutCubic,
         width: _isSidebarExpanded ? 280 : 80,
-        child: ClipRRect(
-          borderRadius: BorderRadius.only(
-            topRight: Radius.circular(_isSidebarExpanded ? 24 : 0),
-            bottomRight: Radius.circular(_isSidebarExpanded ? 24 : 0),
-          ),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    const Color(0xFF6B21A8).withOpacity(0.8), // Deep Purple - more vibrant
-                    const Color(0xFF0EA5E9).withOpacity(0.8), // Electric Blue - more vibrant
-                    const Color(0xFF06B6D4).withOpacity(0.8), // Cyan - more vibrant
-                  ],
-                ),
-                borderRadius: BorderRadius.only(
-                  topRight: Radius.circular(_isSidebarExpanded ? 24 : 0),
-                  bottomRight: Radius.circular(_isSidebarExpanded ? 24 : 0),
-                ),
-                border: Border.all(
-                  color: const Color(0xFFA855F7).withOpacity(0.5), // Neon Purple border
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFA855F7).withOpacity(0.3), // Neon glow
-                    blurRadius: 30,
-                    offset: const Offset(5, 0),
-                    spreadRadius: 2,
-                  ),
-                  BoxShadow(
-                    color: const Color(0xFF22D3EE).withOpacity(0.2), // Cyan glow
-                    blurRadius: 60,
-                    offset: const Offset(5, 0),
-                    spreadRadius: 5,
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                child: Column(
-                  children: [
-                    _buildSidebarHeader(),
-                    const Divider(color: Colors.white24, height: 1, indent: 16, endIndent: 16),
-                    Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                        itemCount: _menuItems.length,
-                        itemBuilder: (context, index) {
-                          return _buildModernMenuItem(_menuItems[index], index);
-                        },
-                      ),
-                    ),
-                    const Divider(color: Colors.white24, height: 1, indent: 16, endIndent: 16),
-                    _buildSidebarFooter(),
-                  ],
-                ),
-              ),
+        decoration: BoxDecoration(
+          color: const Color(0xFF374151), // Dark gray sidebar
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 20,
+              offset: const Offset(2, 0),
             ),
+          ],
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildSidebarHeader(),
+              Divider(color: Colors.white.withOpacity(0.2), height: 1, indent: 16, endIndent: 16),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  itemCount: _menuItems.length,
+                  itemBuilder: (context, index) {
+                    return _buildModernMenuItem(_menuItems[index], index);
+                  },
+                ),
+              ),
+              Divider(color: Colors.white.withOpacity(0.2), height: 1, indent: 16, endIndent: 16),
+              _buildSidebarFooter(),
+            ],
           ),
         ),
       ),
@@ -1105,8 +1194,8 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
                         Text(
                           clinicName,
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
+                            color: Colors.white, // White text
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -1115,16 +1204,16 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
                         const SizedBox(height: 4),
                         Text(
                           'Dr. $doctorName',
-                          style: const TextStyle(
-                            color: Colors.white70,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
                             fontSize: 12,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
                           specialty,
-                          style: TextStyle(
-                            color: Colors.cyan.shade200,
+                          style: const TextStyle(
+                            color: Color(0xFF60A5FA), // Light blue accent
                             fontSize: 11,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -1175,17 +1264,17 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: const Color(0xFFF3F4F6), // Light gray
         borderRadius: BorderRadius.circular(12),
       ),
       child: TabBar(
         controller: _tabController,
         indicator: BoxDecoration(
-          color: Colors.white,
+          color: const Color(0xFF3B82F6), // Blue
           borderRadius: BorderRadius.circular(12),
         ),
-        labelColor: const Color(0xFF1E3A8A),
-        unselectedLabelColor: Colors.white,
+        labelColor: Colors.white,
+        unselectedLabelColor: const Color(0xFF6B7280),
         tabs: const [
           Tab(text: 'Waiting'),
           Tab(text: 'In Progress'),
@@ -1398,11 +1487,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
     return Drawer(
       child: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
-          ),
+          color: Color(0xFF374151), // Dark gray matching desktop sidebar
         ),
         child: SafeArea(
           child: Column(
@@ -2072,76 +2157,76 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
   }
 
   Widget _buildModernMenuItem(MenuItem item, int index) {
-    final isSelected = _selectedMenuIndex == index;
-    final isHovered = _hoveredMenuItem == item.label && !isSelected;
+  final isSelected = _selectedMenuIndex == index;
+  final isHovered = _hoveredMenuItem == item.label && !isSelected;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hoveredMenuItem = item.label),
-      onExit: (_) => setState(() => _hoveredMenuItem = ''),
-      child: GestureDetector(
-        onTap: () {
-          setState(() => _selectedMenuIndex = index);
-          if (item.route != null) {
-            _navigateToRoute(item.route!);
-          }
-        },
-        child: AnimatedContainer(
+  return MouseRegion(
+    onEnter: (_) => setState(() => _hoveredMenuItem = item.label),
+    onExit: (_) => setState(() => _hoveredMenuItem = ''),
+    child: GestureDetector(
+      onTap: () {
+        setState(() => _selectedMenuIndex = index);
+        if (item.route != null) {
+          _navigateToRoute(item.route!);
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+        decoration: BoxDecoration(
+          gradient: isSelected
+              ? const LinearGradient(
+                  colors: [Color(0xFF3B82F6), Color(0xFF60A5FA)],
+                )
+              : null,
+          color: isHovered ? Colors.white.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 200),
-          margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
-          decoration: BoxDecoration(
-            gradient: isSelected
-                ? const LinearGradient(
-                    colors: [Color(0xFF06B6D4), Color(0xFF3B82F6)],
-                  )
-                : null,
-            color: isHovered ? Colors.white.withOpacity(0.1) : Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: _isSidebarExpanded
-                ? Padding(
-                    key: const ValueKey('expanded'),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Row(
-                      children: [
-                        Icon(
-                          item.icon,
-                          color: isSelected ? Colors.white : Colors.white70,
-                          size: 22,
-                        ),
-                        const SizedBox(width: 16),
-                        Flexible(
-                          child: Text(
-                            item.label,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : Padding(
-                    key: const ValueKey('collapsed'),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    child: Center(
-                      child: Icon(
+          child: _isSidebarExpanded
+              ? Padding(
+                  key: const ValueKey('expanded'),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      Icon(
                         item.icon,
-                        color: isSelected ? Colors.white : Colors.white70,
+                        color: isSelected ? Colors.white : Colors.white.withOpacity(0.8),
                         size: 22,
                       ),
+                      const SizedBox(width: 16),
+                      Flexible(
+                        child: Text(
+                          item.label,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : Colors.white.withOpacity(0.9),
+                            fontSize: 14,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : Padding(
+                  key: const ValueKey('collapsed'),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  child: Center(
+                    child: Icon(
+                      item.icon,
+                      color: isSelected ? Colors.white : Colors.white.withOpacity(0.8),
+                      size: 22,
                     ),
                   ),
-          ),
+                ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSidebarFooter() {
     return Padding( // Padding around the footer content
@@ -2613,7 +2698,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
     super.dispose();
   }
 
-  void _onSearchChanged() {
+  void _onSearchChanged() async {
     final query = _searchController.text.toLowerCase();
     
     if (query.isEmpty) {
@@ -2627,19 +2712,31 @@ class _SearchOverlayState extends State<_SearchOverlay> {
 
     setState(() {
       _isSearching = true;
-      
-      // Search patients by name, mobile, or token
-      _filteredPatients = widget.patients.where((patient) {
+    });
+
+    // Search patients from database (all patients, not just today's)
+    try {
+      final allPatients = await DatabaseHelper.instance.getAllPatients();
+      final searchResults = allPatients.where((patient) {
         return patient.name.toLowerCase().contains(query) ||
                patient.mobile.contains(query) ||
                patient.token.toLowerCase().contains(query);
       }).toList();
 
       // Search medicines
-      _filteredMedicines = _allMedicines.where((medicine) {
+      final medicineResults = _allMedicines.where((medicine) {
         return medicine.toLowerCase().contains(query);
       }).toList();
-    });
+
+      if (mounted) {
+        setState(() {
+          _filteredPatients = searchResults;
+          _filteredMedicines = medicineResults;
+        });
+      }
+    } catch (e) {
+      print('Search error: $e');
+    }
   }
 
   @override

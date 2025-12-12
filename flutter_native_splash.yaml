@@ -1,0 +1,23 @@
+flutter_native_splash:
+  # Only dark background - NO logo
+  color: "#1a1a2e"
+  
+  # NO image - just plain dark background
+  # image: assets/icon/app_icon.png  # REMOVED
+  
+  # Android 12+ specific settings - no icon
+  android_12:
+    color: "#1a1a2e"
+    # No image for clean transition
+  
+  # Fullscreen mode
+  fullscreen: true
+  
+  # Android specific settings
+  android: true
+  
+  # iOS specific settings  
+  ios: true
+  
+  # Web specific settings
+  web: true

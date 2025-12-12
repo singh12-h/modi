@@ -95,7 +95,13 @@ class DatabaseHelper {
       final staffJson = jsonEncode(_webStaff.map((s) => s.toMap()).toList());
       await prefs.setString('web_staff', staffJson);
       
+      // Calculate and print storage size
+      final totalBytes = patientsJson.length + appointmentsJson.length + staffJson.length;
+      final totalKB = (totalBytes / 1024).toStringAsFixed(2);
+      final avgPerPatient = _webPatients.isNotEmpty ? (patientsJson.length / _webPatients.length / 1024).toStringAsFixed(2) : '0';
+      
       print('💾 [WEB] Data saved to storage');
+      print('📊 Storage: ${totalKB} KB total | ${_webPatients.length} patients | ~${avgPerPatient} KB/patient');
     } catch (e) {
       print('🔴 Error saving web data: $e');
     }
@@ -734,13 +740,29 @@ class DatabaseHelper {
   Future<List<Patient>> getPatientsByMobile(String mobile) async {
     if (kIsWeb) {
       final filtered = _webPatients.where((patient) => patient.mobile == mobile).toList();
-      // Sort by registration time descending (most recent first)
       filtered.sort((a, b) => b.registrationTime.compareTo(a.registrationTime));
       print('📋 [WEB] getPatientsByMobile: Found ${filtered.length} patients');
       return filtered;
     }
     final db = await database;
     final maps = await db.query('patients', where: 'mobile = ?', whereArgs: [mobile], orderBy: 'registrationTime DESC');
+    return List.generate(maps.length, (i) => Patient.fromMap(maps[i]));
+  }
+
+  // Search patients by name (for registration autocomplete)
+  Future<List<Patient>> searchPatientsByName(String query) async {
+    if (query.isEmpty || query.length < 2) return [];
+    final lowerQuery = query.toLowerCase();
+    
+    if (kIsWeb) {
+      final filtered = _webPatients.where((p) => p.name.toLowerCase().contains(lowerQuery)).toList();
+      filtered.sort((a, b) => b.registrationTime.compareTo(a.registrationTime));
+      print('🔍 [WEB] searchPatientsByName: Found ${filtered.length} patients for "$query"');
+      return filtered.take(10).toList();
+    }
+    
+    final db = await database;
+    final maps = await db.query('patients', where: 'LOWER(name) LIKE ?', whereArgs: ['%$lowerQuery%'], orderBy: 'registrationTime DESC', limit: 10);
     return List.generate(maps.length, (i) => Patient.fromMap(maps[i]));
   }
 

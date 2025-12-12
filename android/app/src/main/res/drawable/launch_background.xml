@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Background gradient matching Flutter splash -->
-    <item android:drawable="@drawable/gradient_background" />
+    <!-- Background Color -->
+    <item android:drawable="@color/splash_background" />
     
-    <!-- Centered app icon -->
+    <!-- Static Logo for Older Androids (Animation not supported natively on cold start) -->
+    <!-- This ensures it's not "blank" but shows the logo waiting to animate -->
     <item>
         <bitmap
             android:gravity="center"
-            android:src="@mipmap/ic_launcher" />
+            android:src="@mipmap/ic_launcher"/>
     </item>
 </layer-list>

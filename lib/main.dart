@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'splash_screen.dart';
 import 'onboarding_screen.dart';
 import 'welcome_page.dart';
@@ -13,7 +14,10 @@ import 'forgot_password_page.dart';
 
 void main() {
   print('========== APP STARTING ==========');
-  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  
+  // Preserve native splash until Flutter is ready
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   print('Using temporary in-memory storage for testing');
 

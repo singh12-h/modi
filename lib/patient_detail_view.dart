@@ -1858,27 +1858,95 @@ class _PatientDetailViewState extends State<PatientDetailView> {
             ),
             const Divider(height: 12),
             if (_consultations.isNotEmpty)
-              ..._consultations.take(3).map((visit) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
+              ..._consultations.take(3).map((visit) => Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      margin: const EdgeInsets.only(top: 4),
-                      decoration: BoxDecoration(color: Colors.purple[700], shape: BoxShape.circle),
+                    // Date and Diagnosis Row
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.purple[100],
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            _formatDate(visit.date),
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.purple[700]),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (visit.diagnosis.isNotEmpty)
+                          Expanded(
+                            child: Text(
+                              visit.diagnosis,
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    
+                    // Medicines Section
+                    if (visit.medications != null && visit.medications!.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Row(
                         children: [
-                          Text(_formatDate(visit.date), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                          if (visit.diagnosis.isNotEmpty) Text(visit.diagnosis, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+                          Icon(Icons.medication, size: 14, color: Colors.green[700]),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              '💊 ${visit.medications}',
+                              style: TextStyle(fontSize: 12, color: Colors.green[700]),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ],
                       ),
-                    ),
+                    ],
+                    
+                    // Notes/Prescription
+                    if (visit.notes != null && visit.notes!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '📝 ${visit.notes}',
+                        style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    
+                    // Follow-up Date
+                    if (visit.followUpDate != null) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.orange[50],
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.orange.shade200),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.calendar_today, size: 12, color: Colors.orange[700]),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Follow-up: ${visit.followUpDate}',
+                              style: TextStyle(fontSize: 11, color: Colors.orange[700], fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ))

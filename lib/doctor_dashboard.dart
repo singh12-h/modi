@@ -35,6 +35,7 @@ import 'package:modi/birthday_notification_widget.dart';
 import 'package:modi/widgets/storage_alert_widget.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
+import 'package:modi/responsive_helper.dart';
 
 class MenuItem {
   final IconData icon;
@@ -158,76 +159,71 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
   }
 
   void _showNoInternetDialog() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < 600;
-    final isVerySmall = screenWidth < 360;
+    ResponsiveHelper.init(context);
     
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => Dialog(
-        insetPadding: EdgeInsets.symmetric(
-          horizontal: isVerySmall ? 16 : 24,
-          vertical: 24,
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: ResponsiveHelper.dialogPadding,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ResponsiveHelper.radiusLG)),
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            maxWidth: isMobile ? screenWidth - 48 : 400,
+            maxWidth: ResponsiveHelper.maxContentWidth,
           ),
           child: SingleChildScrollView(
             child: Padding(
-              padding: EdgeInsets.all(isVerySmall ? 16 : 24),
+              padding: ResponsiveHelper.cardPadding,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding: EdgeInsets.all(isVerySmall ? 16 : 20),
+                    padding: EdgeInsets.all(ResponsiveHelper.spacingXL),
                     decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.1),
+                      color: Colors.red.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       Icons.wifi_off_rounded,
-                      size: isVerySmall ? 48 : 60,
+                      size: ResponsiveHelper.iconXL * 2,
                       color: Colors.red,
                     ),
                   ),
-                  SizedBox(height: isVerySmall ? 16 : 20),
+                  SizedBox(height: ResponsiveHelper.spacingXL),
                   Text(
                     'No Internet Connection',
                     style: TextStyle(
-                      fontSize: isVerySmall ? 18 : 20,
+                      fontSize: ResponsiveHelper.fontXL,
                       fontWeight: FontWeight.bold,
                       color: const Color(0xFF1E3A8A),
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  SizedBox(height: isVerySmall ? 8 : 12),
+                  SizedBox(height: ResponsiveHelper.spacingMD),
                   Text(
                     'Please check your internet connection and try again.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: isVerySmall ? 13 : 14,
+                      fontSize: ResponsiveHelper.fontMD,
                       color: Colors.grey[600],
                     ),
                   ),
-                  SizedBox(height: isVerySmall ? 16 : 24),
+                  SizedBox(height: ResponsiveHelper.spacingXL),
                   SizedBox(
                     width: double.infinity,
+                    height: ResponsiveHelper.buttonHeightMD,
                     child: ElevatedButton.icon(
                       onPressed: () {
                         Navigator.pop(context);
                         _checkConnectivity();
                       },
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Retry'),
+                      icon: Icon(Icons.refresh, size: ResponsiveHelper.iconMD),
+                      label: Text('Retry', style: TextStyle(fontSize: ResponsiveHelper.fontMD)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF3B82F6),
                         foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: isVerySmall ? 10 : 12),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(ResponsiveHelper.radiusMD),
                         ),
                       ),
                     ),
@@ -426,32 +422,27 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
   }
   
   void _showStorageAlertDialog() {
-  final screenWidth = MediaQuery.of(context).size.width;
-  final screenHeight = MediaQuery.of(context).size.height;
-  final isMobile = screenWidth < 600;
-  
-  showDialog(
-    context: context,
-    builder: (context) => Dialog(
-      insetPadding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 16 : 40,
-        vertical: isMobile ? 24 : 40,
-      ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: isMobile ? screenWidth - 32 : 450,
-          maxHeight: screenHeight * 0.85,
-        ),
-        child: SingleChildScrollView(
-          child: StorageAlertWidget(
-            onDismiss: () => Navigator.pop(context),
+    ResponsiveHelper.init(context);
+    
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        insetPadding: ResponsiveHelper.dialogPadding,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ResponsiveHelper.radiusLG)),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: ResponsiveHelper.maxContentWidth,
+            maxHeight: ResponsiveHelper.hp(85),
+          ),
+          child: SingleChildScrollView(
+            child: StorageAlertWidget(
+              onDismiss: () => Navigator.pop(context),
+            ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

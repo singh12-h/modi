@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'database_helper.dart';
 import 'models.dart';
 import 'package:intl/intl.dart';
+import 'responsive_helper.dart';
 
 class ReportsAnalytics extends StatefulWidget {
   const ReportsAnalytics({super.key});
@@ -259,34 +260,49 @@ class _ReportsAnalyticsState extends State<ReportsAnalytics> {
   }
 
   Widget _buildMetricsRow() {
+    ResponsiveHelper.init(context);
+    final isSmall = ResponsiveHelper.isMobile && ResponsiveHelper.screenWidth < 400;
+    
+    final cards = [
+      _buildMetricCard(
+        icon: Icons.people_alt,
+        value: '$_totalPatients',
+        label: 'Total',
+        color: const Color(0xFF667eea),
+      ),
+      _buildMetricCard(
+        icon: Icons.person_add,
+        value: '$_newPatients',
+        label: 'New',
+        color: const Color(0xFF10B981),
+      ),
+      _buildMetricCard(
+        icon: Icons.check_circle,
+        value: '$_completedConsultations',
+        label: 'Done',
+        color: const Color(0xFFEC4899),
+      ),
+    ];
+    
+    // On very small screens, use 2-column grid instead of row
+    if (isSmall) {
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: cards.map((card) => SizedBox(
+          width: (ResponsiveHelper.screenWidth - 56) / 2, // 2 columns with padding
+          child: card,
+        )).toList(),
+      );
+    }
+    
     return Row(
       children: [
-        Expanded(
-          child: _buildMetricCard(
-            icon: Icons.people_alt,
-            value: '$_totalPatients',
-            label: 'Total Patients',
-            color: const Color(0xFF667eea),
-          ),
-        ),
+        Expanded(child: cards[0]),
         const SizedBox(width: 12),
-        Expanded(
-          child: _buildMetricCard(
-            icon: Icons.person_add,
-            value: '$_newPatients',
-            label: 'New Patients',
-            color: const Color(0xFF10B981),
-          ),
-        ),
+        Expanded(child: cards[1]),
         const SizedBox(width: 12),
-        Expanded(
-          child: _buildMetricCard(
-            icon: Icons.check_circle,
-            value: '$_completedConsultations',
-            label: 'Completed',
-            color: const Color(0xFFEC4899),
-          ),
-        ),
+        Expanded(child: cards[2]),
       ],
     );
   }
@@ -773,40 +789,52 @@ class _ReportsAnalyticsState extends State<ReportsAnalytics> {
   }
 
   Widget _buildExportSection() {
+    ResponsiveHelper.init(context);
+    final isSmall = ResponsiveHelper.screenWidth < 380;
+    
+    final buttons = [
+      _buildExportButton(
+        icon: Icons.picture_as_pdf,
+        label: 'PDF',
+        color: const Color(0xFFEF4444),
+        onTap: () => _export('PDF'),
+      ),
+      _buildExportButton(
+        icon: Icons.table_chart,
+        label: 'Excel',
+        color: const Color(0xFF10B981),
+        onTap: () => _export('Excel'),
+      ),
+      _buildExportButton(
+        icon: Icons.print,
+        label: 'Print',
+        color: const Color(0xFF3B82F6),
+        onTap: () => _export('Print'),
+      ),
+    ];
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionTitle('📤 Export Options'),
-        Row(
-          children: [
-            Expanded(
-              child: _buildExportButton(
-                icon: Icons.picture_as_pdf,
-                label: 'PDF',
-                color: const Color(0xFFEF4444),
-                onTap: () => _export('PDF'),
+        isSmall
+            ? Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: buttons.map((btn) => SizedBox(
+                  width: (ResponsiveHelper.screenWidth - 56) / 2,
+                  child: btn,
+                )).toList(),
+              )
+            : Row(
+                children: [
+                  Expanded(child: buttons[0]),
+                  const SizedBox(width: 12),
+                  Expanded(child: buttons[1]),
+                  const SizedBox(width: 12),
+                  Expanded(child: buttons[2]),
+                ],
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildExportButton(
-                icon: Icons.table_chart,
-                label: 'Excel',
-                color: const Color(0xFF10B981),
-                onTap: () => _export('Excel'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildExportButton(
-                icon: Icons.print,
-                label: 'Print',
-                color: const Color(0xFF3B82F6),
-                onTap: () => _export('Print'),
-              ),
-            ),
-          ],
-        ),
       ],
     );
   }

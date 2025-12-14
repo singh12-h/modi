@@ -13,6 +13,7 @@ import 'lab_reports_management.dart';
 import 'patient_feedback_system.dart';
 import 'doctor_schedule_calendar.dart';
 import 'database_helper.dart';
+import 'responsive_helper.dart';
 
 class SettingsConfiguration extends StatefulWidget {
   const SettingsConfiguration({super.key});

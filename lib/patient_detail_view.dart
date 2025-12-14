@@ -9,6 +9,7 @@ import 'consultation_screen.dart';
 import 'models.dart';
 import 'patient_history_timeline.dart';
 import 'database_helper.dart';
+import 'responsive_helper.dart';
 
 
 class PatientDetailView extends StatefulWidget {
@@ -1975,82 +1976,97 @@ class _PatientDetailViewState extends State<PatientDetailView> {
   }
 
   Widget _buildActionButtons() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isVerySmall = screenWidth < 360;
+    // Use ResponsiveHelper for consistent responsive behavior
+    ResponsiveHelper.init(context);
     
     return Column(
       children: [
-        Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => ConsultationScreen(patient: _patient)),
-                  );
-                  // Always reload to reflect status changes (e.g. In Progress)
-                  _loadPatientData();
-                },
-                icon: Icon(_patient?.status == PatientStatus.inProgress ? Icons.play_arrow : Icons.add_circle, size: isVerySmall ? 16 : 18),
-                label: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    _patient?.status == PatientStatus.inProgress 
-                      ? (isVerySmall ? 'Continue' : 'Continue Consultation') 
-                      : (isVerySmall ? 'Start' : 'Start Consultation'), 
-                    style: TextStyle(fontSize: isVerySmall ? 12 : 14),
-                    maxLines: 1,
+        // Use ResponsiveRow for automatic wrapping on very small screens
+        ResponsiveHelper.isVerySmallPhone
+          ? Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: ResponsiveButton(
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => ConsultationScreen(patient: _patient)),
+                      );
+                      _loadPatientData();
+                    },
+                    label: _patient?.status == PatientStatus.inProgress 
+                      ? 'Continue Consultation' 
+                      : 'Start Consultation',
+                    icon: _patient?.status == PatientStatus.inProgress ? Icons.play_arrow : Icons.add_circle,
+                    color: _patient?.status == PatientStatus.inProgress ? Colors.orange[700]! : Colors.green[600]!,
                   ),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _patient?.status == PatientStatus.inProgress ? Colors.orange[700] : Colors.green[600],
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: isVerySmall ? 10 : 12, horizontal: isVerySmall ? 8 : 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                SizedBox(height: ResponsiveHelper.spacingSM),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => PatientHistoryTimeline(patient: _patient)));
+                    },
+                    icon: Icon(Icons.timeline, size: ResponsiveHelper.iconSM),
+                    label: Text('View Timeline', style: TextStyle(fontSize: ResponsiveHelper.fontSM)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.blue[700],
+                      padding: EdgeInsets.symmetric(vertical: ResponsiveHelper.spacingSM, horizontal: ResponsiveHelper.spacingMD),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ResponsiveHelper.radiusSM)),
+                    ),
+                  ),
                 ),
-              ),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: ResponsiveButton(
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => ConsultationScreen(patient: _patient)),
+                      );
+                      _loadPatientData();
+                    },
+                    label: _patient?.status == PatientStatus.inProgress 
+                      ? 'Continue Consultation' 
+                      : 'Start Consultation',
+                    icon: _patient?.status == PatientStatus.inProgress ? Icons.play_arrow : Icons.add_circle,
+                    color: _patient?.status == PatientStatus.inProgress ? Colors.orange[700]! : Colors.green[600]!,
+                  ),
+                ),
+                SizedBox(width: ResponsiveHelper.spacingSM),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => PatientHistoryTimeline(patient: _patient)));
+                    },
+                    icon: Icon(Icons.timeline, size: ResponsiveHelper.iconSM),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('Timeline', style: TextStyle(fontSize: ResponsiveHelper.fontSM)),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.blue[700],
+                      padding: EdgeInsets.symmetric(vertical: ResponsiveHelper.spacingSM, horizontal: ResponsiveHelper.spacingMD),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ResponsiveHelper.radiusSM)),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => PatientHistoryTimeline(patient: _patient)));
-                },
-                icon: Icon(Icons.timeline, size: isVerySmall ? 14 : 16),
-                label: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text('Timeline', style: TextStyle(fontSize: isVerySmall ? 12 : 14)),
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.blue[700],
-                  padding: EdgeInsets.symmetric(vertical: isVerySmall ? 10 : 12, horizontal: isVerySmall ? 6 : 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
+        SizedBox(height: ResponsiveHelper.spacingSM),
         SizedBox(
           width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: _sendWhatsApp,
-            icon: Icon(Icons.chat, size: isVerySmall ? 16 : 18),
-            label: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                isVerySmall ? 'Send WhatsApp' : 'Send WhatsApp Message', 
-                style: TextStyle(fontSize: isVerySmall ? 13 : 14),
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF25D366),
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(vertical: isVerySmall ? 10 : 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
+          child: ResponsiveButton(
+            onPressed: () => _sendWhatsApp(),
+            label: ResponsiveHelper.isVerySmallPhone ? 'WhatsApp' : 'Send WhatsApp Message',
+            icon: Icons.chat,
+            color: const Color(0xFF25D366),
           ),
         ),
       ],

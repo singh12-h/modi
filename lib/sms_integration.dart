@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import 'database_helper.dart';
 import 'models.dart';
+import 'responsive_helper.dart';
 
 class SmsIntegration extends StatefulWidget {
   const SmsIntegration({super.key});

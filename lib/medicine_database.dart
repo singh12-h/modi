@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'responsive_helper.dart';
 
 class MedicineDatabase extends StatefulWidget {
   const MedicineDatabase({super.key});
@@ -109,25 +110,39 @@ class _MedicineDatabaseState extends State<MedicineDatabase> {
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Container(
-            width: 600,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFFE1BEE7),
-                  Color(0xFFF3E5F5),
-                  Color(0xFFFFE0F0),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(20),
+        builder: (context, setState) {
+          ResponsiveHelper.init(context);
+          final dialogWidth = ResponsiveHelper.isMobile 
+              ? ResponsiveHelper.screenWidth * 0.92 
+              : 600.0;
+          final dialogPadding = ResponsiveHelper.isMobile ? 16.0 : 24.0;
+          
+          return Dialog(
+            insetPadding: EdgeInsets.symmetric(
+              horizontal: ResponsiveHelper.isMobile ? 12 : 40,
+              vertical: 24,
             ),
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Container(
+              width: dialogWidth,
+              constraints: BoxConstraints(
+                maxHeight: ResponsiveHelper.screenHeight * 0.85,
+              ),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFE1BEE7),
+                    Color(0xFFF3E5F5),
+                    Color(0xFFFFE0F0),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: EdgeInsets.all(dialogPadding),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -389,7 +404,8 @@ class _MedicineDatabaseState extends State<MedicineDatabase> {
               ),
             ),
           ),
-        ),
+        );
+      },
       ),
     );
   }

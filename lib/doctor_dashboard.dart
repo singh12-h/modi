@@ -493,10 +493,11 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
             ),
           ),
         ),
-        // Main Content
-        Column(
-          children: [
-            _buildTopBar(),
+        // Main Content with SafeArea for system notifications
+        SafeArea(
+          child: Column(
+            children: [
+              _buildTopBar(),
             Expanded(
               child: Stack(
                 children: [
@@ -592,6 +593,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
               ),
             ),
           ],
+        ),
         ),
       ],
     );
@@ -1279,25 +1281,145 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
   }
 
   Widget _buildMobileTabBar() {
+    // Count patients in each status
+    final waitingCount = patients.where((p) => p.status == PatientStatus.waiting).length;
+    final progressCount = patients.where((p) => p.status == PatientStatus.inProgress).length;
+    final completedCount = patients.where((p) => p.status == PatientStatus.completed).length;
+    
     return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F6), // Light gray
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        indicator: BoxDecoration(
-          color: const Color(0xFF3B82F6), // Blue
-          borderRadius: BorderRadius.circular(12),
-        ),
-        labelColor: Colors.white,
-        unselectedLabelColor: const Color(0xFF6B7280),
-        tabs: const [
-          Tab(text: 'Waiting'),
-          Tab(text: 'In Progress'),
-          Tab(text: 'Completed'),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      height: 80,
+      child: Row(
+        children: [
+          Expanded(child: _buildStatusCard(
+            icon: Icons.access_time_filled,
+            label: 'Waiting',
+            count: waitingCount,
+            isSelected: _tabController.index == 0,
+            color: const Color(0xFF3B82F6),
+            onTap: () => _tabController.animateTo(0),
+          )),
+          const SizedBox(width: 10),
+          Expanded(child: _buildStatusCard(
+            icon: Icons.medical_services,
+            label: 'In Progress',
+            count: progressCount,
+            isSelected: _tabController.index == 1,
+            color: const Color(0xFF10B981),
+            onTap: () => _tabController.animateTo(1),
+          )),
+          const SizedBox(width: 10),
+          Expanded(child: _buildStatusCard(
+            icon: Icons.check_circle,
+            label: 'Completed',
+            count: completedCount,
+            isSelected: _tabController.index == 2,
+            color: const Color(0xFF6B7280),
+            onTap: () => _tabController.animateTo(2),
+          )),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStatusCard({
+    required IconData icon,
+    required String label,
+    required int count,
+    required bool isSelected,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          gradient: isSelected 
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [color, color.withOpacity(0.8)],
+              )
+            : LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withOpacity(0.9),
+                  Colors.white.withOpacity(0.7),
+                ],
+              ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? color : Colors.grey.withOpacity(0.2),
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isSelected 
+                ? color.withOpacity(0.4) 
+                : Colors.black.withOpacity(0.08),
+              blurRadius: isSelected ? 12 : 6,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            // Main content
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    size: 28,
+                    color: isSelected ? Colors.white : color,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected ? Colors.white : Colors.grey[700],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            // Count badge
+            if (count > 0)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.white : color,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (isSelected ? Colors.black : color).withOpacity(0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    '$count',
+                    style: TextStyle(
+                      color: isSelected ? color : Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

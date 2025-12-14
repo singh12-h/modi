@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'database_helper.dart';
 import 'models.dart';
 import 'patient_detail_view.dart';
+import 'responsive_helper.dart';
 
 class PatientSearch extends StatefulWidget {
   const PatientSearch({super.key});

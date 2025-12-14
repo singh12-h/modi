@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:modi/database_helper.dart';
 import 'package:modi/models.dart';
 import 'package:intl/intl.dart';
+import 'responsive_helper.dart';
 
 class WhatsAppIntegration extends StatefulWidget {
   final String? patientName;

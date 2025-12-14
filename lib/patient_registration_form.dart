@@ -11,6 +11,7 @@ import 'patient_qr_code.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:image_cropper/image_cropper.dart';
+import 'responsive_helper.dart';
 
 class PatientRegistrationForm extends StatefulWidget {
   final Appointment? appointment;
@@ -35,6 +36,7 @@ class _PatientRegistrationFormState extends State<PatientRegistrationForm> {
       TextEditingController();
   String? _selectedGender;
   DateTime? _selectedBirthDate; // New: Birth date for auto age calculation
+  final TextEditingController _birthDateController = TextEditingController(); // For manual date entry
   String _visitType = 'New Patient'; // New field
   bool _isPreviousPatient = false; // Track if patient visited before
   Patient? _previousVisit; // Store previous visit data
@@ -677,136 +679,148 @@ Thank you for choosing MODI CLINIC! 🙏''';
 
         if (mounted) {
           // Show dialog with SMS option
+          ResponsiveHelper.init(context);
           showDialog(
             context: context,
             barrierDismissible: false,
             builder: (BuildContext dialogContext) {
-              return AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                title: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.check_circle,
-                        color: Colors.white,
-                        size: 28,
-                      ),
+              return ResponsiveDialog(
+                title: 'Registration Successful!',
+                titleIcon: Container(
+                  padding: EdgeInsets.all(ResponsiveHelper.spacingSM),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
                     ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'Registration Successful!',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
+                    borderRadius: BorderRadius.circular(ResponsiveHelper.radiusSM),
+                  ),
+                  child: Icon(
+                    Icons.check_circle,
+                    color: Colors.white,
+                    size: ResponsiveHelper.iconMD,
+                  ),
                 ),
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    ResponsiveText(
                       'Patient: ${patient.name}',
-                      style: const TextStyle(
-                        fontSize: 16,
+                      style: TextStyle(
+                        fontSize: ResponsiveHelper.fontMD,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
+                    SizedBox(height: ResponsiveHelper.spacingSM),
+                    ResponsiveText(
                       'Token: ${patient.token}',
-                      style: const TextStyle(
-                        fontSize: 16,
+                      style: TextStyle(
+                        fontSize: ResponsiveHelper.fontMD,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF8B5CF6),
+                        color: const Color(0xFF8B5CF6),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Send registration confirmation to patient:',
-                      style: TextStyle(fontSize: 14, color: Colors.black87),
+                    SizedBox(height: ResponsiveHelper.spacingMD),
+                    ResponsiveText(
+                      'Send registration confirmation:',
+                      style: TextStyle(fontSize: ResponsiveHelper.fontSM, color: Colors.black87),
                     ),
                   ],
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(dialogContext).pop();
-                      Navigator.pop(context, true);
-                      if (widget.appointment != null) {
-                        Navigator.pop(context);
-                      }
-                    },
-                    child: const Text(
-                      'Skip',
-                      style: TextStyle(color: Colors.grey, fontSize: 14),
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      Navigator.of(dialogContext).pop();
-                      await _sendSMS(patient);
-                      Navigator.pop(context, true);
-                      if (widget.appointment != null) {
-                        Navigator.pop(context);
-                      }
-                    },
-                    icon: const Icon(Icons.sms, color: Colors.white, size: 18),
-                    label: const Text(
-                      'SMS',
-                      style: TextStyle(color: Colors.white, fontSize: 14),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF8B5CF6),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      Navigator.of(dialogContext).pop();
-                      await _sendWhatsApp(patient);
-                      Navigator.pop(context, true);
-                      if (widget.appointment != null) {
-                        Navigator.pop(context);
-                      }
-                    },
-                    icon: const Icon(Icons.chat, color: Colors.white, size: 18),
-                    label: const Text(
-                      'WhatsApp',
-                      style: TextStyle(color: Colors.white, fontSize: 14),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF25D366),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                ],
-                actionsOverflowButtonSpacing: 8,
-                actionsAlignment: MainAxisAlignment.spaceEvenly,
+                actions: ResponsiveHelper.isVerySmallPhone
+                    ? [
+                        // Stack buttons vertically on very small screens
+                        ResponsiveButton(
+                          onPressed: () async {
+                            Navigator.of(dialogContext).pop();
+                            await _sendSMS(patient);
+                            Navigator.pop(context, true);
+                            if (widget.appointment != null) {
+                              Navigator.pop(context);
+                            }
+                          },
+                          label: 'Send SMS',
+                          icon: Icons.sms,
+                          color: const Color(0xFF8B5CF6),
+                        ),
+                        SizedBox(height: ResponsiveHelper.spacingSM),
+                        ResponsiveButton(
+                          onPressed: () async {
+                            Navigator.of(dialogContext).pop();
+                            await _sendWhatsApp(patient);
+                            Navigator.pop(context, true);
+                            if (widget.appointment != null) {
+                              Navigator.pop(context);
+                            }
+                          },
+                          label: 'WhatsApp',
+                          icon: Icons.chat,
+                          color: const Color(0xFF25D366),
+                        ),
+                        SizedBox(height: ResponsiveHelper.spacingSM),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(dialogContext).pop();
+                            Navigator.pop(context, true);
+                            if (widget.appointment != null) {
+                              Navigator.pop(context);
+                            }
+                          },
+                          child: ResponsiveText('Skip', style: TextStyle(color: Colors.grey, fontSize: ResponsiveHelper.fontSM)),
+                        ),
+                      ]
+                    : [
+                        // Horizontal layout for larger screens
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(dialogContext).pop();
+                                Navigator.pop(context, true);
+                                if (widget.appointment != null) {
+                                  Navigator.pop(context);
+                                }
+                              },
+                              child: ResponsiveText('Skip', style: TextStyle(color: Colors.grey, fontSize: ResponsiveHelper.fontSM)),
+                            ),
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                Navigator.of(dialogContext).pop();
+                                await _sendSMS(patient);
+                                Navigator.pop(context, true);
+                                if (widget.appointment != null) {
+                                  Navigator.pop(context);
+                                }
+                              },
+                              icon: Icon(Icons.sms, color: Colors.white, size: ResponsiveHelper.iconSM),
+                              label: ResponsiveText('SMS', style: TextStyle(color: Colors.white, fontSize: ResponsiveHelper.fontSM)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF8B5CF6),
+                                padding: EdgeInsets.symmetric(horizontal: ResponsiveHelper.spacingMD, vertical: ResponsiveHelper.spacingSM),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ResponsiveHelper.radiusSM)),
+                              ),
+                            ),
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                Navigator.of(dialogContext).pop();
+                                await _sendWhatsApp(patient);
+                                Navigator.pop(context, true);
+                                if (widget.appointment != null) {
+                                  Navigator.pop(context);
+                                }
+                              },
+                              icon: Icon(Icons.chat, color: Colors.white, size: ResponsiveHelper.iconSM),
+                              label: ResponsiveText('WhatsApp', style: TextStyle(color: Colors.white, fontSize: ResponsiveHelper.fontSM)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF25D366),
+                                padding: EdgeInsets.symmetric(horizontal: ResponsiveHelper.spacingMD, vertical: ResponsiveHelper.spacingSM),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ResponsiveHelper.radiusSM)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
               );
             },
           );
@@ -852,6 +866,7 @@ Thank you for choosing MODI CLINIC! 🙏''';
     _medicalHistoryController.dispose();
     _symptomsController.dispose();
     _emergencyContactController.dispose();
+    _birthDateController.dispose();
 
     // Dispose Focus Nodes
     _nameFocus.dispose();
@@ -1127,21 +1142,47 @@ Thank you for choosing MODI CLINIC! 🙏''';
                               _buildBirthDatePicker(),
                               const SizedBox(height: 16),
                               
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _buildTextField(
-                                      _ageController,
-                                      'Age',
-                                      Icons.cake_outlined,
-                                      isNumber: true,
-                                      focusNode: _ageFocus,
-                                      nextFocus: _genderFocus,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(child: _buildGenderDropdown()),
-                                ],
+                              Builder(
+                                builder: (context) {
+                                  ResponsiveHelper.init(context);
+                                  final isVerySmall = ResponsiveHelper.screenWidth < 340;
+                                  final gapWidth = ResponsiveHelper.screenWidth < 380 ? 8.0 : 16.0;
+                                  
+                                  // Stack vertically on very small screens
+                                  if (isVerySmall) {
+                                    return Column(
+                                      children: [
+                                        _buildTextField(
+                                          _ageController,
+                                          'Age',
+                                          Icons.cake_outlined,
+                                          isNumber: true,
+                                          focusNode: _ageFocus,
+                                          nextFocus: _genderFocus,
+                                        ),
+                                        const SizedBox(height: 12),
+                                        _buildGenderDropdown(),
+                                      ],
+                                    );
+                                  }
+                                  
+                                  return Row(
+                                    children: [
+                                      Expanded(
+                                        child: _buildTextField(
+                                          _ageController,
+                                          'Age',
+                                          Icons.cake_outlined,
+                                          isNumber: true,
+                                          focusNode: _ageFocus,
+                                          nextFocus: _genderFocus,
+                                        ),
+                                      ),
+                                      SizedBox(width: gapWidth),
+                                      Expanded(child: _buildGenderDropdown()),
+                                    ],
+                                  );
+                                },
                               ),
                               const SizedBox(height: 16),
                               _buildTextField(
@@ -1311,131 +1352,535 @@ Thank you for choosing MODI CLINIC! 🙏''';
     return age;
   }
 
-  // Birthdate Picker Widget with Auto Age Calculation
+  // Birthdate Picker Widget with Auto Age Calculation and Manual Entry
   Widget _buildBirthDatePicker() {
-    return InkWell(
-      onTap: () async {
-        final DateTime? picked = await showDatePicker(
-          context: context,
-          initialDate: _selectedBirthDate ?? DateTime(2000, 1, 1),
-          firstDate: DateTime(1920),
-          lastDate: DateTime.now(),
-          helpText: 'जन्म तिथि चुनें / Select Birth Date',
-          cancelText: 'रद्द करें',
-          confirmText: 'चुनें',
-          builder: (context, child) {
-            return Theme(
-              data: Theme.of(context).copyWith(
-                colorScheme: const ColorScheme.light(
-                  primary: Color(0xFF8E2DE2),
-                  onPrimary: Colors.white,
-                  surface: Colors.white,
-                  onSurface: Colors.black,
-                ),
-              ),
-              child: child!,
-            );
-          },
-        );
-        
-        if (picked != null) {
-          setState(() {
-            _selectedBirthDate = picked;
-            // Auto calculate and fill age
-            final age = _calculateAge(picked);
-            _ageController.text = age.toString();
-          });
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: _selectedBirthDate != null 
-                ? const Color(0xFF8E2DE2) 
-                : Colors.grey[300]!,
-            width: _selectedBirthDate != null ? 2 : 1,
-          ),
-        ),
-        child: Row(
+    return TextFormField(
+      controller: _birthDateController,
+      decoration: InputDecoration(
+        labelText: 'Birth Date (जन्म तिथि)',
+        hintText: 'DD/MM/YYYY or any format',
+        prefixIcon: Icon(Icons.cake_outlined, color: Colors.grey[600]),
+        suffixIcon: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.cake_outlined,
-              color: _selectedBirthDate != null 
-                  ? const Color(0xFF8E2DE2) 
-                  : Colors.grey[400],
-              size: 22,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Birth Date (जन्म तिथि)',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _selectedBirthDate != null
-                        ? DateFormat('dd MMM yyyy').format(_selectedBirthDate!)
-                        : 'Tap to select date',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: _selectedBirthDate != null 
-                          ? FontWeight.w600 
-                          : FontWeight.normal,
-                      color: _selectedBirthDate != null 
-                          ? Colors.black87 
-                          : Colors.grey[500],
-                    ),
-                  ),
-                ],
+            // Clear button
+            if (_birthDateController.text.isNotEmpty)
+              IconButton(
+                icon: const Icon(Icons.clear, size: 20),
+                onPressed: () {
+                  setState(() {
+                    _birthDateController.clear();
+                    _selectedBirthDate = null;
+                    _ageController.clear();
+                  });
+                },
               ),
+            // Calendar button
+            IconButton(
+              icon: const Icon(Icons.calendar_month, color: Color(0xFF8E2DE2)),
+              onPressed: () => _showDatePickerDialog(),
             ),
-            if (_selectedBirthDate != null) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF8E2DE2), Color(0xFFFF0080)],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '${_calculateAge(_selectedBirthDate!)} yrs',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ] else ...[
-              Icon(Icons.calendar_today, color: Colors.grey[400], size: 20),
-            ],
           ],
         ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF8E2DE2), width: 2),
+        ),
+        filled: true,
+        fillColor: Colors.white,
       ),
+      keyboardType: TextInputType.datetime,
+      onChanged: (value) {
+        // Try to parse the date in various formats
+        _tryParseDate(value);
+      },
     );
   }
 
+  // Try to parse date from various formats
+  void _tryParseDate(String value) {
+    if (value.isEmpty) {
+      setState(() {
+        _selectedBirthDate = null;
+        _ageController.clear();
+      });
+      return;
+    }
+
+    DateTime? parsed;
+    
+    // Try various date formats
+    final formats = [
+      'dd/MM/yyyy', 'dd-MM-yyyy', 'dd.MM.yyyy',
+      'MM/dd/yyyy', 'yyyy-MM-dd', 'yyyy/MM/dd',
+      'd/M/yyyy', 'd-M-yyyy', 'dd/M/yyyy', 'd/MM/yyyy',
+      'ddMMyyyy', 'd M yyyy', 'dd M yyyy',
+    ];
+    
+    for (final format in formats) {
+      try {
+        parsed = DateFormat(format).parseStrict(value);
+        break;
+      } catch (_) {}
+    }
+    
+    // Also try natural parsing
+    if (parsed == null) {
+      try {
+        // Try parsing simple numbers like "15 10 1990"
+        final parts = value.split(RegExp(r'[\s/\-.]+')).where((p) => p.isNotEmpty).toList();
+        if (parts.length == 3) {
+          int? day = int.tryParse(parts[0]);
+          int? month = int.tryParse(parts[1]);
+          int? year = int.tryParse(parts[2]);
+          
+          if (day != null && month != null && year != null) {
+            // Handle 2-digit year
+            if (year < 100) {
+              year = year > 50 ? 1900 + year : 2000 + year;
+            }
+            if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+              parsed = DateTime(year, month, day);
+            }
+          }
+        }
+      } catch (_) {}
+    }
+    
+    if (parsed != null && parsed.year >= 1900 && parsed.isBefore(DateTime.now())) {
+      setState(() {
+        _selectedBirthDate = parsed;
+        final age = _calculateAge(parsed!);
+        _ageController.text = age.toString();
+      });
+    }
+  }
+
+  // Custom calendar date picker with month/year selector
+  Future<void> _showDatePickerDialog() async {
+    DateTime selectedDate = _selectedBirthDate ?? DateTime(2000, 1, 1);
+    DateTime currentMonth = DateTime(selectedDate.year, selectedDate.month, 1);
+    bool showMonthPicker = false;
+    bool showYearPicker = false;
+    
+    final List<String> monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    final List<String> weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    
+    await showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            // Helper functions
+            int getDaysInMonth(DateTime date) => DateTime(date.year, date.month + 1, 0).day;
+            int getFirstDayOfMonth(DateTime date) => DateTime(date.year, date.month, 1).weekday % 7;
+            
+            List<int?> generateCalendarDays() {
+              final daysInMonth = getDaysInMonth(currentMonth);
+              final firstDay = getFirstDayOfMonth(currentMonth);
+              final List<int?> days = [];
+              for (int i = 0; i < firstDay; i++) days.add(null);
+              for (int day = 1; day <= daysInMonth; day++) days.add(day);
+              return days;
+            }
+            
+            bool isSelectedDate(int? day) {
+              if (day == null) return false;
+              return day == selectedDate.day &&
+                  currentMonth.month == selectedDate.month &&
+                  currentMonth.year == selectedDate.year;
+            }
+            
+            bool isToday(int? day) {
+              if (day == null) return false;
+              final today = DateTime.now();
+              return day == today.day &&
+                  currentMonth.month == today.month &&
+                  currentMonth.year == today.year;
+            }
+            
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 400),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(32),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header with selected date
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF8E2DE2), Color(0xFFFF0080)],
+                        ),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(32),
+                          topRight: Radius.circular(32),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'SELECT DATE',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w300,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${weekDays[selectedDate.weekday % 7]}, ${monthNames[selectedDate.month - 1].substring(0, 3)} ${selectedDate.day}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: -1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    // Month and Year selector
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.chevron_left, size: 28),
+                            onPressed: () => setDialogState(() {
+                              currentMonth = DateTime(currentMonth.year, currentMonth.month - 1, 1);
+                            }),
+                            color: const Color(0xFF8E2DE2),
+                          ),
+                          Expanded(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // Month selector - CLICKABLE
+                                InkWell(
+                                  onTap: () => setDialogState(() {
+                                    showMonthPicker = !showMonthPicker;
+                                    showYearPicker = false;
+                                  }),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: showMonthPicker ? const Color(0xFF8E2DE2).withOpacity(0.1) : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Text(
+                                          monthNames[currentMonth.month - 1],
+                                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                        ),
+                                        Icon(
+                                          showMonthPicker ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                                          color: const Color(0xFF8E2DE2),
+                                          size: 20,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // Year selector - CLICKABLE
+                                InkWell(
+                                  onTap: () => setDialogState(() {
+                                    showYearPicker = !showYearPicker;
+                                    showMonthPicker = false;
+                                  }),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: showYearPicker ? const Color(0xFF8E2DE2).withOpacity(0.1) : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Text(
+                                          '${currentMonth.year}',
+                                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                        ),
+                                        Icon(
+                                          showYearPicker ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                                          color: const Color(0xFF8E2DE2),
+                                          size: 20,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.chevron_right, size: 28),
+                            onPressed: () => setDialogState(() {
+                              currentMonth = DateTime(currentMonth.year, currentMonth.month + 1, 1);
+                            }),
+                            color: const Color(0xFF8E2DE2),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    // Content - Calendar or Month/Year picker
+                    if (!showMonthPicker && !showYearPicker)
+                      // Calendar Grid
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          children: [
+                            // Weekday headers
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: weekDays.map((day) => SizedBox(
+                                width: 40,
+                                height: 40,
+                                child: Center(
+                                  child: Text(
+                                    day,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: day == 'S' ? Colors.red[400] : Colors.grey[600],
+                                    ),
+                                  ),
+                                ),
+                              )).toList(),
+                            ),
+                            const SizedBox(height: 8),
+                            // Calendar days - Using proper 7-column grid
+                            SizedBox(
+                              height: 240,
+                              child: GridView.builder(
+                                physics: const NeverScrollableScrollPhysics(),
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 7,
+                                  childAspectRatio: 1,
+                                ),
+                                itemCount: 42, // 6 rows * 7 days
+                                itemBuilder: (context, index) {
+                                  final calendarDays = generateCalendarDays();
+                                  final day = index < calendarDays.length ? calendarDays[index] : null;
+                                  final selected = isSelectedDate(day);
+                                  final today = isToday(day);
+                                  
+                                  return GestureDetector(
+                                    onTap: () {
+                                      if (day != null) {
+                                        setDialogState(() {
+                                          selectedDate = DateTime(currentMonth.year, currentMonth.month, day);
+                                        });
+                                      }
+                                    },
+                                    child: Container(
+                                      margin: const EdgeInsets.all(2),
+                                      decoration: BoxDecoration(
+                                        gradient: selected ? const LinearGradient(
+                                          colors: [Color(0xFF8E2DE2), Color(0xFFFF0080)],
+                                        ) : null,
+                                        color: today && !selected ? const Color(0xFFF3E8FF) : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Center(
+                                        child: day != null ? Text(
+                                          '$day',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: selected || today ? FontWeight.bold : FontWeight.normal,
+                                            color: selected ? Colors.white : Colors.black87,
+                                          ),
+                                        ) : null,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (showMonthPicker)
+                      // Month Picker Grid
+                      Container(
+                        height: 200,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: GridView.builder(
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            childAspectRatio: 2,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                          ),
+                          itemCount: 12,
+                          itemBuilder: (context, index) {
+                            final isSelected = currentMonth.month == index + 1;
+                            return InkWell(
+                              onTap: () => setDialogState(() {
+                                currentMonth = DateTime(currentMonth.year, index + 1, 1);
+                                showMonthPicker = false;
+                              }),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: isSelected ? const LinearGradient(
+                                    colors: [Color(0xFF8E2DE2), Color(0xFFFF0080)],
+                                  ) : null,
+                                  color: isSelected ? null : Colors.grey[100],
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    monthNames[index].substring(0, 3),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                      color: isSelected ? Colors.white : Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      )
+                    else
+                      // Year Picker Grid
+                      Container(
+                        height: 200,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: GridView.builder(
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            childAspectRatio: 2,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                          ),
+                          itemCount: DateTime.now().year - 1919,
+                          itemBuilder: (context, index) {
+                            final year = DateTime.now().year - index;
+                            final isSelected = currentMonth.year == year;
+                            return InkWell(
+                              onTap: () => setDialogState(() {
+                                currentMonth = DateTime(year, currentMonth.month, 1);
+                                showYearPicker = false;
+                              }),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: isSelected ? const LinearGradient(
+                                    colors: [Color(0xFF8E2DE2), Color(0xFFFF0080)],
+                                  ) : null,
+                                  color: isSelected ? null : Colors.grey[100],
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '$year',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                      color: isSelected ? Colors.white : Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    
+                    // Action Buttons
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(color: Colors.grey[600], fontSize: 16, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(dialogContext, selectedDate),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF8E2DE2),
+                              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            child: const Text('OK', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).then((picked) {
+      if (picked != null) {
+        final pickedDate = picked as DateTime;
+        setState(() {
+          _selectedBirthDate = pickedDate;
+          _birthDateController.text = DateFormat('dd/MM/yyyy').format(pickedDate);
+          final age = _calculateAge(pickedDate);
+          _ageController.text = age.toString();
+        });
+      }
+    });
+  }
+
   Widget _buildGenderDropdown() {
+    ResponsiveHelper.init(context);
+    final isSmall = ResponsiveHelper.screenWidth < 380;
+    final fontSize = isSmall ? 13.0 : 16.0;
+    
     return DropdownButtonFormField<String>(
       value: _selectedGender,
       focusNode: _genderFocus,
+      isExpanded: true, // Prevent overflow
       decoration: _inputDecoration('Gender', Icons.wc),
+      style: TextStyle(
+        fontSize: fontSize,
+        color: Colors.black87,
+      ),
       items: ['Male', 'Female', 'Other'].map((String value) {
-        return DropdownMenuItem<String>(value: value, child: Text(value));
+        return DropdownMenuItem<String>(
+          value: value, 
+          child: Text(
+            value,
+            style: TextStyle(fontSize: fontSize),
+            overflow: TextOverflow.ellipsis,
+          ),
+        );
       }).toList(),
       onChanged: (value) {
         setState(() => _selectedGender = value);
-        FocusScope.of(context).requestFocus(_mobileFocus); // Auto move focus
+        FocusScope.of(context).requestFocus(_mobileFocus);
       },
       validator: (value) => value == null ? 'Required' : null,
     );

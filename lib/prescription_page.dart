@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'responsive_helper.dart';
 
 class PrescriptionPage extends StatefulWidget {
   const PrescriptionPage({super.key});
@@ -374,40 +375,54 @@ class _PrescriptionPageState extends State<PrescriptionPage> {
             ),
             const SizedBox(height: 30),
             // Actions: Email, SMS, WhatsApp, Print, Save PDF
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _emailRx,
-                  icon: const Icon(Icons.email),
-                  label: const Text('Email'),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-                ),
-                ElevatedButton.icon(
-                  onPressed: _smsRx,
-                  icon: const Icon(Icons.sms),
-                  label: const Text('SMS'),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                ),
-                ElevatedButton.icon(
-                  onPressed: _whatsappRx,
-                  icon: const Icon(Icons.message),
-                  label: const Text('WhatsApp'),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.lightGreen),
-                ),
-                ElevatedButton.icon(
-                  onPressed: _printRx,
-                  icon: const Icon(Icons.print),
-                  label: const Text('Print'),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                ),
-                ElevatedButton.icon(
-                  onPressed: _savePdf,
-                  icon: const Icon(Icons.save),
-                  label: const Text('Save PDF'),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
-                ),
-              ],
+            Builder(
+              builder: (context) {
+                ResponsiveHelper.init(context);
+                final isSmall = ResponsiveHelper.screenWidth < 500;
+                final iconSize = isSmall ? 16.0 : 20.0;
+                final fontSize = isSmall ? 11.0 : 14.0;
+                final padding = isSmall 
+                    ? const EdgeInsets.symmetric(horizontal: 8, vertical: 6)
+                    : const EdgeInsets.symmetric(horizontal: 12, vertical: 8);
+                
+                return Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _emailRx,
+                      icon: Icon(Icons.email, size: iconSize),
+                      label: Text('Email', style: TextStyle(fontSize: fontSize)),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, padding: padding),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _smsRx,
+                      icon: Icon(Icons.sms, size: iconSize),
+                      label: Text('SMS', style: TextStyle(fontSize: fontSize)),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: padding),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _whatsappRx,
+                      icon: Icon(Icons.message, size: iconSize),
+                      label: Text('WhatsApp', style: TextStyle(fontSize: fontSize)),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.lightGreen, padding: padding),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _printRx,
+                      icon: Icon(Icons.print, size: iconSize),
+                      label: Text('Print', style: TextStyle(fontSize: fontSize)),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: padding),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _savePdf,
+                      icon: Icon(Icons.save, size: iconSize),
+                      label: Text('PDF', style: TextStyle(fontSize: fontSize)),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.purple, padding: padding),
+                    ),
+                  ],
+                );
+              },
             ),
           ],
         ),

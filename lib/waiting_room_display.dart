@@ -1,8 +1,12 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:convert';
 import 'database_helper.dart';
 import 'models.dart';
+import 'responsive_helper.dart';
 
 class WaitingRoomDisplay extends StatefulWidget {
   const WaitingRoomDisplay({super.key});
@@ -108,6 +112,25 @@ class _WaitingRoomDisplayState extends State<WaitingRoomDisplay> with TickerProv
       begin: const Offset(-1.0, 0.0),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOut));
+  }
+
+  // Helper to get image provider for patient photos
+  ImageProvider? _getImageProvider(String? path) {
+    if (path == null || path.isEmpty) return null;
+    try {
+      if (kIsWeb) {
+        if (path.startsWith('data:image')) {
+          return MemoryImage(base64Decode(path.split(',').last));
+        }
+        return NetworkImage(path);
+      }
+      if (File(path).existsSync()) {
+        return FileImage(File(path));
+      }
+    } catch (e) {
+      print('Error loading image: $e');
+    }
+    return null;
   }
 
   @override
@@ -253,7 +276,10 @@ class _WaitingRoomDisplayState extends State<WaitingRoomDisplay> with TickerProv
               onExit: (_) => setState(() => _isHeaderHovered = false),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+                padding: EdgeInsets.symmetric(
+                  horizontal: screenWidth > 600 ? 32 : 12,
+                  vertical: screenWidth > 600 ? 20 : 10,
+                ),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFF1E293B), Color(0xFF334155)],
@@ -311,50 +337,56 @@ class _WaitingRoomDisplayState extends State<WaitingRoomDisplay> with TickerProv
                     
                     // Clinic Logo/Icon
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: EdgeInsets.all(screenWidth > 600 ? 12 : 8),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
                         ),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(screenWidth > 600 ? 12 : 8),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.local_hospital,
                         color: Colors.white,
-                        size: 32,
+                        size: screenWidth > 600 ? 32 : 20,
                       ),
                     ),
-                    const SizedBox(width: 20),
+                    SizedBox(width: screenWidth > 600 ? 20 : 8),
                   
-                  // Clinic Name
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'MODI CLINIC',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          letterSpacing: 2,
+                  // Clinic Name - Hide subtitle on small screens
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'MODI CLINIC',
+                          style: TextStyle(
+                            fontSize: screenWidth > 600 ? 28 : 16,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: screenWidth > 600 ? 2 : 1,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      Text(
-                        'Patient Queue Management System',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white70,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                    ],
+                        if (screenWidth > 500)
+                          Text(
+                            'Patient Queue System',
+                            style: TextStyle(
+                              fontSize: screenWidth > 600 ? 14 : 10,
+                              color: Colors.white70,
+                              letterSpacing: 1,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
                   ),
-                  
-                  const Spacer(),
                   
                   // Live Indicator
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: screenWidth > 600 ? 16 : 8,
+                      vertical: screenWidth > 600 ? 8 : 4,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFDC2626),
                       borderRadius: BorderRadius.circular(20),
@@ -367,6 +399,7 @@ class _WaitingRoomDisplayState extends State<WaitingRoomDisplay> with TickerProv
                       ],
                     ),
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
                           width: 8,
@@ -376,12 +409,12 @@ class _WaitingRoomDisplayState extends State<WaitingRoomDisplay> with TickerProv
                             shape: BoxShape.circle,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'LIVE',
+                        SizedBox(width: screenWidth > 400 ? 8 : 4),
+                        Text(
+                          screenWidth > 400 ? 'LIVE' : '●',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 14,
+                            fontSize: screenWidth > 600 ? 14 : 10,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 1.5,
                           ),
@@ -390,29 +423,30 @@ class _WaitingRoomDisplayState extends State<WaitingRoomDisplay> with TickerProv
                     ),
                   ),
                   
-                  const SizedBox(width: 24),
+                  SizedBox(width: screenWidth > 600 ? 24 : 8),
                   
-                  // Date & Time
+                  // Date & Time - Condensed on mobile
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '${_formatTime(now.hour)}:${_formatTime(now.minute)}:${_formatTime(now.second)}',
-                        style: const TextStyle(
-                          fontSize: 32,
+                        '${_formatTime(now.hour)}:${_formatTime(now.minute)}',
+                        style: TextStyle(
+                          fontSize: screenWidth > 600 ? 32 : 18,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
-                          fontFeatures: [FontFeature.tabularFigures()],
+                          fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
-                      Text(
-                        '${_getDayName(now.weekday)}, ${now.day} ${_getMonthName(now.month)} ${now.year}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.white70,
-                          letterSpacing: 0.5,
+                      if (screenWidth > 500)
+                        Text(
+                          '${_getDayName(now.weekday)}, ${now.day} ${_getMonthName(now.month)}',
+                          style: TextStyle(
+                            fontSize: screenWidth > 600 ? 14 : 10,
+                            color: Colors.white70,
+                            letterSpacing: 0.5,
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ],
@@ -506,21 +540,29 @@ class _WaitingRoomDisplayState extends State<WaitingRoomDisplay> with TickerProv
                                         ),
                                         child: ClipRRect(
                                           borderRadius: BorderRadius.circular(30),
-                                          child: currentServing.photoPath != null && currentServing.photoPath!.isNotEmpty
-                                              ? Image.network(
-                                                  currentServing.photoPath!,
+                                          child: Builder(
+                                            builder: (context) {
+                                              final imageProvider = _getImageProvider(currentServing?.photoPath);
+                                              if (imageProvider != null) {
+                                                return Image(
+                                                  image: imageProvider,
                                                   fit: BoxFit.cover,
+                                                  width: 300,
+                                                  height: 300,
                                                   errorBuilder: (context, error, stackTrace) {
                                                     return Container(
                                                       color: const Color(0xFFF1F5F9),
                                                       child: const Icon(Icons.person, size: 150, color: Color(0xFF8B5CF6)),
                                                     );
                                                   },
-                                                )
-                                              : Container(
-                                                  color: const Color(0xFFF1F5F9),
-                                                  child: const Icon(Icons.person, size: 150, color: Color(0xFF8B5CF6)),
-                                                ),
+                                                );
+                                              }
+                                              return Container(
+                                                color: const Color(0xFFF1F5F9),
+                                                child: const Icon(Icons.person, size: 150, color: Color(0xFF8B5CF6)),
+                                              );
+                                            },
+                                          ),
                                         ),
                                       ),
                                       const SizedBox(height: 50),
@@ -768,21 +810,30 @@ class _WaitingRoomDisplayState extends State<WaitingRoomDisplay> with TickerProv
                                                 ],
                                               ),
                                               child: ClipOval(
-                                                child: patient.photoPath != null && patient.photoPath!.isNotEmpty
-                                                    ? Image.network(
-                                                        patient.photoPath!,
+                                                child: Builder(
+                                                  builder: (context) {
+                                                    final imageProvider = _getImageProvider(patient.photoPath);
+                                                    final iconSize = screenWidth > 800 ? 50.0 : 35.0;
+                                                    if (imageProvider != null) {
+                                                      return Image(
+                                                        image: imageProvider,
                                                         fit: BoxFit.cover,
+                                                        width: screenWidth > 800 ? 80 : 60,
+                                                        height: screenWidth > 800 ? 80 : 60,
                                                         errorBuilder: (context, error, stackTrace) {
                                                           return Container(
                                                             color: const Color(0xFFF1F5F9),
-                                                            child: Icon(Icons.person, size: screenWidth > 800 ? 50 : 35, color: const Color(0xFF8B5CF6)),
+                                                            child: Icon(Icons.person, size: iconSize, color: const Color(0xFF8B5CF6)),
                                                           );
                                                         },
-                                                      )
-                                                    : Container(
-                                                        color: const Color(0xFFF1F5F9),
-                                                        child: Icon(Icons.person, size: screenWidth > 800 ? 50 : 35, color: const Color(0xFF8B5CF6)),
-                                                      ),
+                                                      );
+                                                    }
+                                                    return Container(
+                                                      color: const Color(0xFFF1F5F9),
+                                                      child: Icon(Icons.person, size: iconSize, color: const Color(0xFF8B5CF6)),
+                                                    );
+                                                  },
+                                                ),
                                               ),
                                             ),
                                             SizedBox(width: screenWidth > 800 ? 24 : 12),

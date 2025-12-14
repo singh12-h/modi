@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import 'prescription_page.dart';
 import 'models.dart';
 import 'database_helper.dart';
+import 'responsive_helper.dart';
 
 class ConsultationScreen extends StatefulWidget {
   final Patient? patient;

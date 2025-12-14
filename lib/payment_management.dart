@@ -4,6 +4,7 @@ import 'package:modi/models.dart';
 import 'package:intl/intl.dart';
 import 'pdf_service.dart';
 import 'payment_installment_screen.dart';
+import 'responsive_helper.dart';
 
 class PaymentManagement extends StatefulWidget {
   final bool isStaff;
@@ -669,10 +670,12 @@ class _PaymentManagementState extends State<PaymentManagement> with SingleTicker
   }
 
   void _showPaymentDetails(Payment payment) {
+    ResponsiveHelper.init(context);
+    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(payment.patientName),
+      builder: (context) => ResponsiveDialog(
+        title: payment.patientName,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -687,61 +690,46 @@ class _PaymentManagementState extends State<PaymentManagement> with SingleTicker
               _buildDetailRow('Method', payment.paymentMethod!),
           ],
         ),
-        actionsAlignment: MainAxisAlignment.center,
         actions: [
           // PDF Button - Always visible
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                try {
-                  final patient = await DatabaseHelper.instance.getPatient(payment.patientId);
-                  if (patient != null) {
-                    await PdfService.generatePaymentReceipt(payment, patient);
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: $e')),
-                    );
-                  }
+          ResponsiveButton(
+            onPressed: () async {
+              try {
+                final patient = await DatabaseHelper.instance.getPatient(payment.patientId);
+                if (patient != null) {
+                  await PdfService.generatePaymentReceipt(payment, patient);
                 }
-              },
-              icon: const Icon(Icons.picture_as_pdf, size: 20),
-              label: const Text('Download Receipt PDF'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6B21A8),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              }
+            },
+            label: 'Download PDF',
+            icon: Icons.picture_as_pdf,
+            color: const Color(0xFF6B21A8),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: ResponsiveHelper.spacingSM),
           // Mark as Paid Button - Only for pending payments
           if (payment.status == 'pending')
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _markAsPaid(payment);
-                },
-                icon: const Icon(Icons.check, size: 20),
-                label: const Text('Mark as Paid'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF10B981),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
+            ResponsiveButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _markAsPaid(payment);
+              },
+              label: 'Mark as Paid',
+              icon: Icons.check,
+              color: const Color(0xFF10B981),
             ),
-          if (payment.status == 'pending') const SizedBox(height: 8),
+          if (payment.status == 'pending') SizedBox(height: ResponsiveHelper.spacingSM),
           // Close Button
           SizedBox(
             width: double.infinity,
             child: TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
+              child: ResponsiveText('Close', style: TextStyle(fontSize: ResponsiveHelper.fontMD)),
             ),
           ),
         ],

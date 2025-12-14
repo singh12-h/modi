@@ -18,6 +18,7 @@ import 'staff_login_page.dart';
 import 'doctor_login_page.dart';
 import 'package:flutter/services.dart';
 import 'birthday_notification_widget.dart';
+import 'responsive_helper.dart';
 
 class OPDStaffDashboard extends StatefulWidget {
   const OPDStaffDashboard({super.key});
@@ -1263,81 +1264,95 @@ class _OPDStaffDashboardState extends State<OPDStaffDashboard> {
   }
 
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    ResponsiveHelper.init(context);
+    final isSmall = ResponsiveHelper.screenWidth < 380;
+    final cardPadding = isSmall ? 14.0 : 24.0;
+    final iconPadding = isSmall ? 10.0 : 16.0;
+    final iconSize = isSmall ? 22.0 : 32.0;
+    final valueSize = isSmall ? 24.0 : 32.0;
+    final titleSize = isSmall ? 12.0 : 15.0;
+    
     return Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              color.withOpacity(0.1),
-              color.withOpacity(0.05),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: color.withOpacity(0.2),
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.1),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-              spreadRadius: 2,
-            ),
+      padding: EdgeInsets.all(cardPadding),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withOpacity(0.1),
+            color.withOpacity(0.05),
           ],
         ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [color, color.withOpacity(0.7)],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: color.withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+        borderRadius: BorderRadius.circular(isSmall ? 14 : 20),
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(iconPadding),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [color, color.withOpacity(0.7)],
               ),
-              child: Icon(icon, color: Colors.white, size: 32),
+              borderRadius: BorderRadius.circular(isSmall ? 10 : 16),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            const SizedBox(width: 20),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
+            child: Icon(icon, color: Colors.white, size: iconSize),
+          ),
+          SizedBox(width: isSmall ? 12 : 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
                     value,
                     style: TextStyle(
-                      fontSize: 32,
+                      fontSize: valueSize,
                       fontWeight: FontWeight.bold,
                       color: color,
                       height: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                    ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: Colors.grey[700],
+                    fontSize: titleSize,
+                    fontWeight: FontWeight.w500,
                   ),
-                ],
-              ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildActionCard(String title, IconData icon, Color color, String route) {

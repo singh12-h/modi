@@ -204,6 +204,7 @@ class ResponsiveButton extends StatelessWidget {
   final IconData? icon;
   final VoidCallback? onPressed;
   final Color? backgroundColor;
+  final Color? color; // Alias for backgroundColor
   final Color? foregroundColor;
   final bool isOutlined;
   final bool isCompact;
@@ -214,6 +215,7 @@ class ResponsiveButton extends StatelessWidget {
     this.icon,
     this.onPressed,
     this.backgroundColor,
+    this.color, // Alias for backgroundColor
     this.foregroundColor,
     this.isOutlined = false,
     this.isCompact = false,
@@ -235,7 +237,7 @@ class ResponsiveButton extends StatelessWidget {
             ),
           )
         : ElevatedButton.styleFrom(
-            backgroundColor: backgroundColor ?? Theme.of(context).primaryColor,
+            backgroundColor: color ?? backgroundColor ?? Theme.of(context).primaryColor,
             foregroundColor: foregroundColor ?? Colors.white,
             padding: EdgeInsets.symmetric(
               horizontal: isCompact ? ResponsiveHelper.spacingMD : ResponsiveHelper.spacingLG,
@@ -286,6 +288,7 @@ class ResponsiveButton extends StatelessWidget {
 /// Responsive Dialog - properly sized for all screens
 class ResponsiveDialog extends StatelessWidget {
   final String? title;
+  final Widget? titleIcon; // Optional icon to show before title
   final Widget content;
   final List<Widget>? actions;
   final bool scrollable;
@@ -293,6 +296,7 @@ class ResponsiveDialog extends StatelessWidget {
   const ResponsiveDialog({
     super.key,
     this.title,
+    this.titleIcon,
     required this.content,
     this.actions,
     this.scrollable = true,
@@ -319,12 +323,22 @@ class ResponsiveDialog extends StatelessWidget {
             if (title != null)
               Padding(
                 padding: ResponsiveHelper.cardPadding,
-                child: Text(
-                  title!,
-                  style: TextStyle(
-                    fontSize: ResponsiveHelper.fontXL,
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: Row(
+                  children: [
+                    if (titleIcon != null) ...[
+                      titleIcon!,
+                      SizedBox(width: ResponsiveHelper.spacingMD),
+                    ],
+                    Expanded(
+                      child: Text(
+                        title!,
+                        style: TextStyle(
+                          fontSize: ResponsiveHelper.fontXL,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             if (scrollable)
@@ -342,10 +356,9 @@ class ResponsiveDialog extends StatelessWidget {
             if (actions != null && actions!.isNotEmpty)
               Padding(
                 padding: ResponsiveHelper.cardPadding,
-                child: Wrap(
-                  spacing: ResponsiveHelper.spacingSM,
-                  runSpacing: ResponsiveHelper.spacingSM,
-                  alignment: WrapAlignment.end,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: actions!,
                 ),
               ),

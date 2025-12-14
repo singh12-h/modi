@@ -751,7 +751,7 @@ Thank you for choosing MODI CLINIC! 🙏''';
                     },
                     child: const Text(
                       'Skip',
-                      style: TextStyle(color: Colors.grey, fontSize: 16),
+                      style: TextStyle(color: Colors.grey, fontSize: 14),
                     ),
                   ),
                   ElevatedButton.icon(
@@ -763,23 +763,22 @@ Thank you for choosing MODI CLINIC! 🙏''';
                         Navigator.pop(context);
                       }
                     },
-                    icon: const Icon(Icons.sms, color: Colors.white),
+                    icon: const Icon(Icons.sms, color: Colors.white, size: 18),
                     label: const Text(
                       'SMS',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
+                      style: TextStyle(color: Colors.white, fontSize: 14),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF8B5CF6),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
+                        horizontal: 12,
+                        vertical: 10,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
                   ElevatedButton.icon(
                     onPressed: () async {
                       Navigator.of(dialogContext).pop();
@@ -789,23 +788,25 @@ Thank you for choosing MODI CLINIC! 🙏''';
                         Navigator.pop(context);
                       }
                     },
-                    icon: const Icon(Icons.chat, color: Colors.white),
+                    icon: const Icon(Icons.chat, color: Colors.white, size: 18),
                     label: const Text(
                       'WhatsApp',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
+                      style: TextStyle(color: Colors.white, fontSize: 14),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF25D366),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
+                        horizontal: 12,
+                        vertical: 10,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   ),
                 ],
+                actionsOverflowButtonSpacing: 8,
+                actionsAlignment: MainAxisAlignment.spaceEvenly,
               );
             },
           );

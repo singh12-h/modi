@@ -158,67 +158,85 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
   }
 
   void _showNoInternetDialog() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+    final isVerySmall = screenWidth < 360;
+    
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.wifi_off_rounded,
-                size: 60,
-                color: Colors.red,
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'No Internet Connection',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E3A8A),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Please check your internet connection and try again.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-            ),
-          ],
+      builder: (context) => Dialog(
+        insetPadding: EdgeInsets.symmetric(
+          horizontal: isVerySmall ? 16 : 24,
+          vertical: 24,
         ),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                _checkConnectivity();
-              },
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3B82F6),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: isMobile ? screenWidth - 48 : 400,
+          ),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.all(isVerySmall ? 16 : 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(isVerySmall ? 16 : 20),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.wifi_off_rounded,
+                      size: isVerySmall ? 48 : 60,
+                      color: Colors.red,
+                    ),
+                  ),
+                  SizedBox(height: isVerySmall ? 16 : 20),
+                  Text(
+                    'No Internet Connection',
+                    style: TextStyle(
+                      fontSize: isVerySmall ? 18 : 20,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF1E3A8A),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: isVerySmall ? 8 : 12),
+                  Text(
+                    'Please check your internet connection and try again.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: isVerySmall ? 13 : 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  SizedBox(height: isVerySmall ? 16 : 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _checkConnectivity();
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF3B82F6),
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(vertical: isVerySmall ? 10 : 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -1620,12 +1638,13 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
     final waitingCount = patients.where((p) => p.status == PatientStatus.waiting).length;
     final inProgressCount = patients.where((p) => p.status == PatientStatus.inProgress).length;
     final completedCount = patients.where((p) => p.status == PatientStatus.completed).length;
+    final isMobile = Responsive.isMobile(context);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
+      margin: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24),
       decoration: BoxDecoration(
         color: const Color(0xFF1e1e2e).withOpacity(0.4),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
         border: Border.all(
           color: Colors.white.withOpacity(0.15),
           width: 1.5,
@@ -1639,7 +1658,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
           child: TabBar(
@@ -1650,7 +1669,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
               boxShadow: [
                 BoxShadow(
                   color: const Color(0xFF22D3EE).withOpacity(0.6),
@@ -1659,35 +1678,40 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
                 ),
               ],
             ),
-            indicatorPadding: const EdgeInsets.all(4),
+            indicatorPadding: EdgeInsets.all(isMobile ? 3 : 4),
             labelColor: Colors.black,
             unselectedLabelColor: Colors.black.withOpacity(0.6),
-            labelStyle: const TextStyle(
-              fontSize: 15,
+            labelStyle: TextStyle(
+              fontSize: isMobile ? 12 : 15,
               fontWeight: FontWeight.bold,
             ),
-            unselectedLabelStyle: const TextStyle(
-              fontSize: 14,
+            unselectedLabelStyle: TextStyle(
+              fontSize: isMobile ? 11 : 14,
               fontWeight: FontWeight.w500,
             ),
+            isScrollable: false,
+            labelPadding: EdgeInsets.symmetric(horizontal: isMobile ? 4 : 8),
             tabs: [
               _buildEnhancedTab(
                 icon: Icons.schedule_rounded,
-                label: 'Waiting',
+                label: isMobile ? 'Wait' : 'Waiting',
                 count: waitingCount,
                 color: const Color(0xFFFFA726),
+                isMobile: isMobile,
               ),
               _buildEnhancedTab(
                 icon: Icons.healing_rounded,
-                label: 'In Progress',
+                label: isMobile ? 'Active' : 'In Progress',
                 count: inProgressCount,
                 color: const Color(0xFF22D3EE),
+                isMobile: isMobile,
               ),
               _buildEnhancedTab(
                 icon: Icons.check_circle_rounded,
-                label: 'Completed',
+                label: isMobile ? 'Done' : 'Completed',
                 count: completedCount,
                 color: const Color(0xFF10B981),
+                isMobile: isMobile,
               ),
             ],
           ),
@@ -1701,41 +1725,55 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
     required String label,
     required int count,
     required Color color,
+    bool isMobile = false,
   }) {
     return Tab(
-      height: 70,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 22),
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: color.withOpacity(0.5),
-                    width: 1,
+      height: isMobile ? 56 : 70,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: isMobile ? 16 : 22),
+                SizedBox(width: isMobile ? 3 : 6),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 5 : 8, 
+                    vertical: isMobile ? 1 : 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
+                    border: Border.all(
+                      color: color.withOpacity(0.5),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    count.toString(),
+                    style: TextStyle(
+                      fontSize: isMobile ? 10 : 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
                   ),
                 ),
-                child: Text(
-                  count.toString(),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(label),
-        ],
+              ],
+            ),
+            SizedBox(height: isMobile ? 4 : 6),
+            Text(
+              label,
+              style: TextStyle(fontSize: isMobile ? 11 : 14),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1754,13 +1792,30 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
       }
     }).toList();
 
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = Responsive.isMobile(context);
+    
+    // Adaptive aspect ratio based on actual screen width
+    double aspectRatio;
+    if (screenWidth < 350) {
+      aspectRatio = 2.8; // Very small phones
+    } else if (screenWidth < 400) {
+      aspectRatio = 2.4; // Small phones
+    } else if (isMobile) {
+      aspectRatio = 2.2; // Regular phones
+    } else if (Responsive.isTablet(context)) {
+      aspectRatio = 1.6;
+    } else {
+      aspectRatio = 1.5; // Desktop
+    }
+    
     return GridView.builder(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 12 : 24),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: Responsive.isDesktop(context) ? 3 : (Responsive.isTablet(context) ? 2 : 1),
-        childAspectRatio: Responsive.isMobile(context) ? 2.2 : 1.5,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
+        childAspectRatio: aspectRatio,
+        crossAxisSpacing: isMobile ? 10 : 16,
+        mainAxisSpacing: isMobile ? 10 : 16,
       ),
       itemCount: filteredPatients.length,
       itemBuilder: (context, index) {
@@ -2969,22 +3024,39 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
-                        Icon(Icons.badge, size: 14, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Token: ${patient.token}',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.badge, size: 14, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                'Token: ${patient.token}',
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 12),
-                        Icon(Icons.phone, size: 14, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Text(
-                          patient.mobile,
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.phone, size: 14, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
+                            Text(
+                              patient.mobile,
+                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
                       ],
                     ),

@@ -943,13 +943,15 @@ class _PatientDetailViewState extends State<PatientDetailView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       DateFormat('dd MMM yyyy').format(txn.paymentDate),
                       style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                     ),
-                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
@@ -967,11 +969,15 @@ class _PatientDetailViewState extends State<PatientDetailView> {
                 Text(
                   'Receipt: ${txn.receiptNumber}',
                   style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 if (txn.notes != null && txn.notes!.isNotEmpty)
                   Text(
                     txn.notes!,
                     style: TextStyle(fontSize: 11, color: Colors.grey[600], fontStyle: FontStyle.italic),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
               ],
             ),
@@ -1969,6 +1975,9 @@ class _PatientDetailViewState extends State<PatientDetailView> {
   }
 
   Widget _buildActionButtons() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isVerySmall = screenWidth < 360;
+    
     return Column(
       children: [
         Row(
@@ -1984,12 +1993,21 @@ class _PatientDetailViewState extends State<PatientDetailView> {
                   // Always reload to reflect status changes (e.g. In Progress)
                   _loadPatientData();
                 },
-                icon: Icon(_patient?.status == PatientStatus.inProgress ? Icons.play_arrow : Icons.add_circle, size: 18),
-                label: Text(_patient?.status == PatientStatus.inProgress ? 'Continue Consultation' : 'Start Consultation', style: const TextStyle(fontSize: 14)),
+                icon: Icon(_patient?.status == PatientStatus.inProgress ? Icons.play_arrow : Icons.add_circle, size: isVerySmall ? 16 : 18),
+                label: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    _patient?.status == PatientStatus.inProgress 
+                      ? (isVerySmall ? 'Continue' : 'Continue Consultation') 
+                      : (isVerySmall ? 'Start' : 'Start Consultation'), 
+                    style: TextStyle(fontSize: isVerySmall ? 12 : 14),
+                    maxLines: 1,
+                  ),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _patient?.status == PatientStatus.inProgress ? Colors.orange[700] : Colors.green[600],
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: EdgeInsets.symmetric(vertical: isVerySmall ? 10 : 12, horizontal: isVerySmall ? 8 : 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
@@ -2000,11 +2018,14 @@ class _PatientDetailViewState extends State<PatientDetailView> {
                 onPressed: () {
                   Navigator.push(context, MaterialPageRoute(builder: (context) => PatientHistoryTimeline(patient: _patient)));
                 },
-                icon: const Icon(Icons.timeline, size: 16),
-                label: const Text('Timeline', style: TextStyle(fontSize: 14)),
+                icon: Icon(Icons.timeline, size: isVerySmall ? 14 : 16),
+                label: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text('Timeline', style: TextStyle(fontSize: isVerySmall ? 12 : 14)),
+                ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.blue[700],
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: EdgeInsets.symmetric(vertical: isVerySmall ? 10 : 12, horizontal: isVerySmall ? 6 : 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
@@ -2016,12 +2037,18 @@ class _PatientDetailViewState extends State<PatientDetailView> {
           width: double.infinity,
           child: ElevatedButton.icon(
             onPressed: _sendWhatsApp,
-            icon: const Icon(Icons.chat, size: 18),
-            label: const Text('Send WhatsApp Message', style: TextStyle(fontSize: 14)),
+            icon: Icon(Icons.chat, size: isVerySmall ? 16 : 18),
+            label: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                isVerySmall ? 'Send WhatsApp' : 'Send WhatsApp Message', 
+                style: TextStyle(fontSize: isVerySmall ? 13 : 14),
+              ),
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF25D366),
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: EdgeInsets.symmetric(vertical: isVerySmall ? 10 : 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
           ),

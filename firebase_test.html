@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Firebase Test</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <style>
+        body {
+            font-family: Arial;
+            padding: 20px;
+            background: #1a1a2e;
+            color: white;
+        }
+
+        button {
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 8px;
+            border: none;
+        }
+
+        .success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .error {
+            background: #e74c3c;
+            color: white;
+        }
+
+        #log {
+            background: #2d2d44;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔥 Firebase Connection Test</h1>
+    <button onclick="testConnection()" style="background:#3498db;color:white;">Test Connection</button>
+    <button onclick="writeTest()" style="background:#27ae60;color:white;">Write Test Data</button>
+    <button onclick="readData()" style="background:#9b59b6;color:white;">Read Data</button>
+    <div id="log">Click buttons to test Firebase...</div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBXgDIO-fOGnjG6Kqz9Vnn3_iMWSe0eZgo",
+            authDomain: "ks-console.firebaseapp.com",
+            projectId: "ks-console",
+            storageBucket: "ks-console.firebasestorage.app",
+            messagingSenderId: "614272969820",
+            appId: "1:614272969820:web:b7516b04899a6f29bc8a99"
+        };
+
+        let db = null;
+        const log = document.getElementById('log');
+
+        function addLog(msg, isError = false) {
+            const time = new Date().toLocaleTimeString();
+            log.innerHTML += `\n[${time}] ${isError ? '❌' : '✅'} ${msg}`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        async function testConnection() {
+            log.innerHTML = 'Testing Firebase connection...';
+            try {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                    addLog('Firebase initialized');
+                }
+                db = firebase.firestore();
+                addLog('Firestore instance created');
+
+                // Try to read
+                const snapshot = await db.collection('licenses').limit(1).get();
+                addLog(`Connected! Found ${snapshot.size} documents`);
+
+            } catch (e) {
+                addLog(`Error: ${e.message}`, true);
+                console.error(e);
+            }
+        }
+
+        async function writeTest() {
+            if (!db) { addLog('Initialize first!', true); return; }
+
+            const testId = 'TEST-' + Date.now();
+            addLog(`Writing test document: ${testId}`);
+
+            try {
+                await db.collection('licenses').doc(testId).set({
+                    key: testId,
+                    type: 'D',
+                    typeName: 'demo',
+                    status: 'unused',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    test: true
+                });
+                addLog(`Document written successfully: ${testId}`);
+
+                // Verify immediately
+                const doc = await db.collection('licenses').doc(testId).get();
+                if (doc.exists) {
+                    addLog(`Verified! Document exists in Firebase`);
+                } else {
+                    addLog(`Warning: Document not found after write!`, true);
+                }
+
+            } catch (e) {
+                addLog(`Write Error: ${e.message}`, true);
+                console.error(e);
+            }
+        }
+
+        async function readData() {
+            if (!db) { addLog('Initialize first!', true); return; }
+
+            try {
+                const snapshot = await db.collection('licenses').get();
+                addLog(`Found ${snapshot.size} total documents:`);
+                snapshot.forEach(doc => {
+                    addLog(`  - ${doc.id}: ${doc.data().typeName || 'unknown'}`);
+                });
+            } catch (e) {
+                addLog(`Read Error: ${e.message}`, true);
+                console.error(e);
+            }
+        }
+    </script>
+</body>
+
+</html>

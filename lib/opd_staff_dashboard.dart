@@ -1159,19 +1159,25 @@ class _OPDStaffDashboardState extends State<OPDStaffDashboard> {
                                         ],
                                       ),
                                     ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: Colors.orange[50],
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: Colors.orange[200]!),
-                                      ),
-                                      child: Text(
-                                        'Waiting',
-                                        style: TextStyle(
-                                          color: Colors.orange[700],
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
+                                    Flexible(
+                                      flex: 0,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        constraints: const BoxConstraints(maxWidth: 70),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange[50],
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(color: Colors.orange[200]!),
+                                        ),
+                                        child: Text(
+                                          'Waiting',
+                                          style: TextStyle(
+                                            color: Colors.orange[700],
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 1,
                                         ),
                                       ),
                                     ),
@@ -1229,7 +1235,7 @@ class _OPDStaffDashboardState extends State<OPDStaffDashboard> {
                           Container(width: 50, height: 50, decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.blue[300]!, Colors.blue[500]!]), shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.blue.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))], image: _getImageProvider(patient.photoPath) != null ? DecorationImage(image: _getImageProvider(patient.photoPath)!, fit: BoxFit.cover) : null), child: _getImageProvider(patient.photoPath) == null ? Center(child: Text(patient.name[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20))) : null),
                           const SizedBox(width: 16),
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(patient.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)), const SizedBox(height: 4), Text('Token: ${patient.token}', style: TextStyle(color: Colors.grey[600], fontSize: 13))])),
-                          Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: Colors.orange[50], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.orange[200]!)), child: Text('Waiting', style: TextStyle(color: Colors.orange[700], fontSize: 12, fontWeight: FontWeight.w600))),
+                          Flexible(flex: 0, child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), constraints: const BoxConstraints(maxWidth: 70), decoration: BoxDecoration(color: Colors.orange[50], borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.orange[200]!)), child: Text('Waiting', style: TextStyle(color: Colors.orange[700], fontSize: 11, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis, maxLines: 1))),
                         ]));
                       }))),
                     ]))),

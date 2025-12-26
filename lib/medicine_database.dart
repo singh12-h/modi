@@ -62,6 +62,104 @@ class _MedicineDatabaseState extends State<MedicineDatabase> {
     );
   }
 
+  void _deleteMedicine(int index) {
+    final medicine = _filteredMedicines[index];
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.delete_forever, color: Colors.red.shade700, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Text('Delete Medicine'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Are you sure you want to delete this medicine?'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.medication, color: Colors.purple.shade700),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          medicine['brand']!,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          medicine['generic'] ?? '',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                // Find and remove from the original medicines list
+                _medicines.removeWhere((m) => 
+                  m['brand'] == medicine['brand'] && 
+                  m['generic'] == medicine['generic']);
+                _filterMedicines();
+              });
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(Icons.check_circle, color: Colors.white),
+                      const SizedBox(width: 12),
+                      Text('${medicine['brand']} deleted successfully'),
+                    ],
+                  ),
+                  backgroundColor: Colors.green,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showMedicineDetails(Map<String, String> medicine) {
     showDialog(
       context: context,
@@ -613,377 +711,467 @@ class _MedicineDatabaseState extends State<MedicineDatabase> {
 
   @override
   Widget build(BuildContext context) {
+    // Count medicines by form type
+    int tabletCount = _medicines.where((m) => m['form'] == 'Tablet').length;
+    int capsuleCount = _medicines.where((m) => m['form'] == 'Capsule').length;
+    int syrupCount = _medicines.where((m) => m['form'] == 'Syrup').length;
+    int otherCount = _medicines.length - tabletCount - capsuleCount - syrupCount;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Medicine Database',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        elevation: 0,
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: IconButton(
-              onPressed: _showAddNewMedicineDialog,
-              icon: const Icon(Icons.add_circle, color: Colors.white, size: 28),
-              tooltip: 'Add New Medicine',
-            ),
-          ),
-        ],
-      ),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
             colors: [
-              Color(0xFFF3E5F5),
-              Color(0xFFFFFFFF),
+              Color(0xFF1A237E),
+              Color(0xFF311B92),
+              Color(0xFF4A148C),
             ],
           ),
         ),
-        child: Column(
-          children: [
-            // Search Bar
-            Container(
-              margin: const EdgeInsets.all(16.0),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF9C27B0).withOpacity(0.3), width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF9C27B0).withOpacity(0.2),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: '🔍 Search medicines by name, generic, or manufacturer...',
-                  hintStyle: TextStyle(color: Colors.grey[400]),
-                  prefixIcon: Container(
-                    margin: const EdgeInsets.all(8),
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
-                      ),
-                      borderRadius: BorderRadius.circular(10),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Premium Header
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    // Top Row with back button and title
+                    Row(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '💊 Medicine Database',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                'Manage your medicine inventory',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF00C853), Color(0xFF64DD17)],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF00C853).withOpacity(0.4),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: IconButton(
+                            onPressed: _showAddNewMedicineDialog,
+                            icon: const Icon(Icons.add, color: Colors.white, size: 28),
+                            tooltip: 'Add Medicine',
+                          ),
+                        ),
+                      ],
                     ),
-                    child: const Icon(Icons.search, color: Colors.white, size: 24),
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    const SizedBox(height: 20),
+                    
+                    // Stats Cards Row
+                    Row(
+                      children: [
+                        _buildStatCard('Total', _medicines.length.toString(), Icons.medication, const Color(0xFF7C4DFF)),
+                        const SizedBox(width: 10),
+                        _buildStatCard('Tablets', tabletCount.toString(), Icons.medication, const Color(0xFFE91E63)),
+                        const SizedBox(width: 10),
+                        _buildStatCard('Capsules', capsuleCount.toString(), Icons.medication_liquid, const Color(0xFFFF9800)),
+                        const SizedBox(width: 10),
+                        _buildStatCard('Syrups', syrupCount.toString(), Icons.local_drink, const Color(0xFF2196F3)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Premium Search Bar
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        style: const TextStyle(fontSize: 16),
+                        decoration: InputDecoration(
+                          hintText: 'Search medicines...',
+                          hintStyle: TextStyle(color: Colors.grey[400]),
+                          prefixIcon: Container(
+                            margin: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF7C4DFF), Color(0xFFB388FF)],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.search, color: Colors.white, size: 20),
+                          ),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    _filterMedicines();
+                                  },
+                                  icon: Icon(Icons.clear, color: Colors.grey[400]),
+                                )
+                              : null,
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            
-            // Header with count
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
+              
+              // Results Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  children: [
+                    Text(
+                      '${_filteredMedicines.length} medicines found',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
                       ),
-                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.medication, color: Colors.white, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Available Medicines (${_filteredMedicines.length})',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF6A1B9A),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.sort, size: 16, color: Colors.white70),
+                          const SizedBox(width: 4),
+                          const Text('A-Z', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              
+              // Medicine List - White Container
+              Expanded(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(28),
+                      topRight: Radius.circular(28),
                     ),
                   ),
-                ],
+                  child: _filteredMedicines.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[100],
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(Icons.medication_outlined, size: 60, color: Colors.grey[400]),
+                              ),
+                              const SizedBox(height: 20),
+                              Text(
+                                'No Medicines Found',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Tap + to add your first medicine',
+                                style: TextStyle(color: Colors.grey[500]),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
+                          itemCount: _filteredMedicines.length,
+                          itemBuilder: (context, index) {
+                            var medicine = _filteredMedicines[index];
+                            return _buildMedicineCard(medicine, index);
+                          },
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 18),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            
-            // Medicine List
-            Expanded(
-              child: _filteredMedicines.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMedicineCard(Map<String, String> medicine, int index) {
+    Color formColor;
+    IconData formIcon;
+    
+    switch (medicine['form']) {
+      case 'Tablet':
+        formColor = const Color(0xFFE91E63);
+        formIcon = Icons.medication;
+        break;
+      case 'Capsule':
+        formColor = const Color(0xFFFF9800);
+        formIcon = Icons.medication_liquid;
+        break;
+      case 'Syrup':
+        formColor = const Color(0xFF2196F3);
+        formIcon = Icons.local_drink;
+        break;
+      case 'Injection':
+        formColor = const Color(0xFF673AB7);
+        formIcon = Icons.vaccines;
+        break;
+      case 'Drops':
+        formColor = const Color(0xFF00BCD4);
+        formIcon = Icons.water_drop;
+        break;
+      default:
+        formColor = const Color(0xFF4CAF50);
+        formIcon = Icons.healing;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: formColor.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _showMedicineDetails(medicine),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                // Icon with gradient background
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [formColor, formColor.withOpacity(0.7)],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: formColor.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Icon(formIcon, color: Colors.white, size: 28),
+                ),
+                const SizedBox(width: 14),
+                
+                // Medicine Details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        medicine['brand']!,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A237E),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
                         children: [
-                          Icon(
-                            Icons.search_off,
-                            size: 80,
-                            color: Colors.grey[300],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No medicines found',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: formColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              medicine['form'] ?? 'Medicine',
+                              style: TextStyle(
+                                color: formColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Try a different search term',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[400],
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              medicine['generic'] ?? '',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
                       ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      itemCount: _filteredMedicines.length,
-                      itemBuilder: (context, index) {
-                        var medicine = _filteredMedicines[index];
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Colors.white,
-                                Color(0xFFF3E5F5).withOpacity(0.3),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.purple.withOpacity(0.1),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
+                      if (medicine['manufacturer'] != null && medicine['manufacturer']!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Row(
+                            children: [
+                              Icon(Icons.business, size: 12, color: Colors.grey[400]),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  medicine['manufacturer']!,
+                                  style: TextStyle(
+                                    color: Colors.grey[500],
+                                    fontSize: 11,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ],
                           ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.all(16),
-                            leading: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: medicine['form'] == 'Tablet'
-                                      ? [const Color(0xFFD81B60), const Color(0xFF8E24AA)] // Magenta -> Purple
-                                      : medicine['form'] == 'Syrup'
-                                          ? [const Color(0xFF1976D2), const Color(0xFF64B5F6)] // Blue -> Light Blue
-                                          : medicine['form'] == 'Capsule'
-                                              ? [const Color(0xFFFFD600), const Color(0xFFFF6D00)] // Yellow -> Orange
-                                              : medicine['form'] == 'Injection'
-                                                  ? [const Color(0xFF303F9F), const Color(0xFF7986CB)] // Indigo -> Blue
-                                                  : [const Color(0xFF0288D1), const Color(0xFF26C6DA)], // Cyan -> Teal
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: (medicine['form'] == 'Tablet'
-                                            ? const Color(0xFFD81B60)
-                                            : medicine['form'] == 'Syrup'
-                                                ? const Color(0xFF1976D2)
-                                                : medicine['form'] == 'Capsule'
-                                                    ? const Color(0xFFFFD600)
-                                                    : medicine['form'] == 'Injection'
-                                                        ? const Color(0xFF303F9F)
-                                                        : const Color(0xFF0288D1))
-                                        .withOpacity(0.3),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Icon(
-                                medicine['form'] == 'Tablet'
-                                    ? Icons.medication
-                                    : medicine['form'] == 'Syrup'
-                                        ? Icons.local_drink
-                                        : medicine['form'] == 'Capsule'
-                                            ? Icons.medication_liquid
-                                            : medicine['form'] == 'Injection'
-                                                ? Icons.vaccines
-                                                : medicine['form'] == 'Drops'
-                                                    ? Icons.water_drop
-                                                    : medicine['form'] == 'Cream' || medicine['form'] == 'Ointment'
-                                                        ? Icons.healing
-                                                        : Icons.medical_services,
-                                color: Colors.white,
-                                size: 28,
-                              ),
-                            ),
-                            title: Text(
-                              medicine['brand']!,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Color(0xFF6A1B9A),
-                              ),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        gradient: const LinearGradient(
-                                          colors: [Color(0xFFE1BEE7), Color(0xFFF8BBD0)],
-                                        ),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        medicine['form'] ?? 'Medicine',
-                                        style: const TextStyle(
-                                          color: Color(0xFF6A1B9A),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        medicine['generic']!,
-                                        style: TextStyle(
-                                          color: Colors.grey[700],
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (medicine['manufacturer'] != null && medicine['manufacturer']!.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.factory, size: 14, color: Colors.grey[600]),
-                                        const SizedBox(width: 4),
-                                        Expanded(
-                                          child: Text(
-                                            medicine['manufacturer']!,
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                              fontSize: 12,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [Color(0xFFBA68C8), Color(0xFFCE93D8)],
-                                    ),
-                                    borderRadius: BorderRadius.circular(10),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.purple.withOpacity(0.3),
-                                        blurRadius: 6,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: IconButton(
-                                    onPressed: () => _showMedicineDetails(medicine),
-                                    icon: const Icon(Icons.info, color: Colors.white, size: 22),
-                                    tooltip: 'Details',
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [Color(0xFF9C27B0), Color(0xFFE91E63)],
-                                    ),
-                                    borderRadius: BorderRadius.circular(10),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.pink.withOpacity(0.4),
-                                        blurRadius: 6,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: IconButton(
-                                    onPressed: () => _showAddToRxDialog(medicine['brand']!),
-                                    icon: const Icon(Icons.add_circle, color: Colors.white, size: 22),
-                                    tooltip: 'Add to Rx',
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
+                        ),
+                    ],
+                  ),
+                ),
+                
+                // Action Buttons
+                Column(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4CAF50).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: IconButton(
+                        onPressed: () => _showAddToRxDialog(medicine['brand']!),
+                        icon: const Icon(Icons.add_circle_outline, color: Color(0xFF4CAF50), size: 22),
+                        padding: const EdgeInsets.all(8),
+                        constraints: const BoxConstraints(),
+                        tooltip: 'Add to Rx',
+                      ),
                     ),
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.blue.withOpacity(0.5),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: FloatingActionButton.extended(
-          onPressed: _showAddNewMedicineDialog,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          icon: const Icon(Icons.add, color: Colors.white, size: 28),
-          label: const Text(
-            'Add Medicine',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+                    const SizedBox(height: 4),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: IconButton(
+                        onPressed: () => _deleteMedicine(index),
+                        icon: Icon(Icons.delete_outline, color: Colors.red[400], size: 20),
+                        padding: const EdgeInsets.all(8),
+                        constraints: const BoxConstraints(),
+                        tooltip: 'Delete',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:flutter/services.dart';
 import 'glassmorphism.dart';
 import 'doctor_dashboard.dart';
 import 'staff_login_page.dart';
@@ -22,6 +25,147 @@ class _DoctorLoginPageState extends State<DoctorLoginPage> {
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  final LocalAuthentication _localAuth = LocalAuthentication();
+  bool _canCheckBiometrics = false;
+  bool _hasSavedCredentials = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeLogin();
+  }
+
+  Future<void> _initializeLogin() async {
+    await _loadSavedCredentials();
+    await _checkBiometricSupport();
+    
+    // Auto-trigger fingerprint if credentials are saved
+    if (_canCheckBiometrics && _hasSavedCredentials) {
+      // Small delay to let UI render first
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        _authenticateWithBiometrics();
+      }
+    }
+  }
+
+  Future<void> _checkBiometricSupport() async {
+    try {
+      final canCheck = await _localAuth.canCheckBiometrics;
+      final isDeviceSupported = await _localAuth.isDeviceSupported();
+      setState(() {
+        _canCheckBiometrics = canCheck && isDeviceSupported;
+      });
+    } on PlatformException {
+      setState(() => _canCheckBiometrics = false);
+    }
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedUsername = prefs.getString('doctor_saved_username');
+    final savedPassword = prefs.getString('doctor_saved_password');
+    final rememberMe = prefs.getBool('doctor_remember_me') ?? false;
+    
+    if (rememberMe && savedUsername != null) {
+      setState(() {
+        _usernameController.text = savedUsername;
+        // Also fill password when Remember Me is enabled
+        if (savedPassword != null) {
+          _passwordController.text = savedPassword;
+        }
+        _rememberMe = true;
+        _hasSavedCredentials = savedPassword != null;
+      });
+    }
+  }
+
+  Future<void> _saveCredentials(String username, String password) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_rememberMe) {
+      await prefs.setString('doctor_saved_username', username);
+      await prefs.setString('doctor_saved_password', password);
+      await prefs.setBool('doctor_remember_me', true);
+    } else {
+      await prefs.remove('doctor_saved_username');
+      await prefs.remove('doctor_saved_password');
+      await prefs.setBool('doctor_remember_me', false);
+    }
+  }
+
+  Future<void> _authenticateWithBiometrics() async {
+    try {
+      // First check if we have saved credentials
+      final prefs = await SharedPreferences.getInstance();
+      final savedUsername = prefs.getString('doctor_saved_username');
+      final savedPassword = prefs.getString('doctor_saved_password');
+      
+      if (savedUsername == null || savedPassword == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please login with password first and enable "Remember Me" to use fingerprint'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Now authenticate with biometrics
+      final authenticated = await _localAuth.authenticate(
+        localizedReason: 'Scan your fingerprint to login',
+        options: const AuthenticationOptions(
+          stickyAuth: true,
+          biometricOnly: false, // Allow PIN/Pattern as fallback
+        ),
+      );
+
+      if (authenticated) {
+        setState(() => _isLoading = true);
+        try {
+          final staff = await DatabaseHelper.instance.authenticate(
+            savedUsername,
+            savedPassword,
+          );
+
+          if (staff != null && staff.role == 'doctor') {
+            if (mounted) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (context) => DoctorDashboard(loggedInDoctor: staff)),
+              );
+            }
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Saved credentials are invalid. Please login manually.')),
+              );
+            }
+          }
+        } finally {
+          if (mounted) setState(() => _isLoading = false);
+        }
+      }
+    } on PlatformException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Biometric error: ${e.message ?? "Unknown error"}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -185,6 +329,37 @@ class _DoctorLoginPageState extends State<DoctorLoginPage> {
                           _buildRememberMeAndForgotPassword(),
                           SizedBox(height: isMobile ? 20 : 32),
                           _buildLoginButton(),
+                          // Fingerprint Login Button
+                          if (_canCheckBiometrics && _hasSavedCredentials) ...[
+                            SizedBox(height: isMobile ? 8 : 12),
+                            Container(
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [Colors.purple.shade400, Colors.purple.shade600],
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: ElevatedButton.icon(
+                                onPressed: _isLoading ? null : _authenticateWithBiometrics,
+                                icon: const Icon(Icons.fingerprint, color: Colors.white, size: 24),
+                                label: const Text(
+                                  'Login with Fingerprint',
+                                  style: TextStyle(fontSize: 16, color: Colors.white),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  backgroundColor: Colors.transparent,
+                                  shadowColor: Colors.transparent,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                           SizedBox(height: isMobile ? 12 : 16),
                           // Create Account Button
                           Container(
@@ -338,6 +513,7 @@ class _DoctorLoginPageState extends State<DoctorLoginPage> {
             );
 
             if (staff != null && staff.role == 'doctor') {
+              await _saveCredentials(_usernameController.text, _passwordController.text);
               if (mounted) {
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(builder: (context) => DoctorDashboard(loggedInDoctor: staff)),

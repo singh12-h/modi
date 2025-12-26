@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="hi-en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apna Clinic - Medical OPD Digital Intelligence | Broader AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        /* ==================== HERO SECTION ==================== */
+        .hero {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 60px 20px;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(circle at 20% 80%, rgba(102, 126, 234, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(118, 75, 162, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(240, 147, 251, 0.1) 0%, transparent 30%);
+            animation: float 20s ease-in-out infinite;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0) rotate(0deg);
+            }
+
+            50% {
+                transform: translateY(-20px) rotate(5deg);
+            }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 10;
+        }
+
+        .company-logo {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px 40px;
+            border-radius: 20px;
+            margin-bottom: 50px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            display: inline-block;
+        }
+
+        .company-logo img {
+            height: 60px;
+        }
+
+        .hero h1 {
+            font-size: 6em;
+            font-weight: 900;
+            background: linear-gradient(135deg, #fff 0%, #ffd700 50%, #fff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 10px 40px rgba(255, 215, 0, 0.3);
+            margin-bottom: 20px;
+            letter-spacing: -2px;
+        }
+
+        .hero h2 {
+            font-size: 1.8em;
+            font-weight: 300;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 40px;
+            letter-spacing: 3px;
+        }
+
+        .hero-tagline {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            padding: 20px 50px;
+            border-radius: 60px;
+            font-size: 1.3em;
+            font-weight: 600;
+            display: inline-block;
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
+            margin-bottom: 50px;
+        }
+
+        .hero-stats {
+            display: flex;
+            gap: 60px;
+            margin-top: 50px;
+        }
+
+        .stat-box {
+            text-align: center;
+        }
+
+        .stat-box .number {
+            font-size: 3.5em;
+            font-weight: 900;
+            color: #ffd700;
+        }
+
+        .stat-box .label {
+            font-size: 1em;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+
+        /* ==================== PRICE SECTION ==================== */
+        .price-section {
+            background: linear-gradient(135deg, #059669 0%, #047857 50%, #065f46 100%);
+            padding: 80px 40px;
+            text-align: center;
+            position: relative;
+        }
+
+        .price-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="rgba(255,255,255,0.1)"/></svg>') repeat;
+            background-size: 30px 30px;
+        }
+
+        .price-content {
+            position: relative;
+            z-index: 10;
+        }
+
+        .price-label {
+            font-size: 1.5em;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+
+        .mega-price {
+            font-size: 8em;
+            font-weight: 900;
+            text-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            line-height: 1;
+        }
+
+        .mega-price sup {
+            font-size: 0.35em;
+            vertical-align: super;
+        }
+
+        .price-subtitle {
+            font-size: 1.8em;
+            margin-top: 20px;
+            opacity: 0.95;
+        }
+
+        .warranty-badge {
+            background: linear-gradient(135deg, #ffd700 0%, #f59e0b 100%);
+            color: #1a1a2e;
+            padding: 25px 60px;
+            border-radius: 60px;
+            display: inline-block;
+            font-size: 1.8em;
+            font-weight: 800;
+            margin-top: 40px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            transform: rotate(-2deg);
+        }
+
+        .warranty-badge span {
+            display: block;
+            font-size: 0.6em;
+            font-weight: 500;
+            margin-top: 5px;
+        }
+
+        /* ==================== PACKAGE SECTION ==================== */
+        .package-section {
+            background: linear-gradient(180deg, #0f0f1a 0%, #1a1a2e 100%);
+            padding: 100px 40px;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .section-header h2 {
+            font-size: 3em;
+            font-weight: 800;
+            margin-bottom: 15px;
+        }
+
+        .section-header p {
+            font-size: 1.3em;
+            opacity: 0.7;
+        }
+
+        .package-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .package-item {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 25px;
+            padding: 40px 30px;
+            text-align: center;
+            transition: all 0.4s ease;
+        }
+
+        .package-item:hover {
+            transform: translateY(-10px);
+            border-color: #667eea;
+            box-shadow: 0 20px 60px rgba(102, 126, 234, 0.2);
+        }
+
+        .package-item .icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .package-item h3 {
+            font-size: 1.4em;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .package-item p {
+            font-size: 1em;
+            opacity: 0.7;
+        }
+
+        /* ==================== FEATURES SECTION ==================== */
+        .features-section {
+            background: #fff;
+            color: #1a1a2e;
+            padding: 100px 40px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .feature-card {
+            background: #fff;
+            border-radius: 25px;
+            padding: 40px 30px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            transition: all 0.4s ease;
+            border: 2px solid transparent;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 25px 60px rgba(102, 126, 234, 0.2);
+            border-color: #667eea;
+        }
+
+        .feature-card .icon {
+            width: 90px;
+            height: 90px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 25px;
+            font-size: 2.5em;
+        }
+
+        .feature-card h3 {
+            font-size: 1.4em;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #1a1a2e;
+        }
+
+        .feature-card p {
+            font-size: 1em;
+            color: #666;
+            line-height: 1.7;
+        }
+
+        /* ==================== SCREENSHOTS SECTION ==================== */
+        .screenshots-section {
+            background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%);
+            padding: 100px 40px;
+        }
+
+        .screenshots-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .screenshot-card {
+            background: #fff;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            transition: all 0.4s ease;
+        }
+
+        .screenshot-card:hover {
+            transform: scale(1.05) translateY(-10px);
+            box-shadow: 0 30px 70px rgba(102, 126, 234, 0.3);
+        }
+
+        .screenshot-card img {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            object-position: top;
+        }
+
+        .screenshot-card h4 {
+            padding: 20px;
+            text-align: center;
+            font-size: 1em;
+            font-weight: 600;
+            color: #1a1a2e;
+            background: linear-gradient(135deg, #f8f9ff, #fff);
+        }
+
+        /* ==================== WHY SECTION ==================== */
+        .why-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 100px 40px;
+        }
+
+        .why-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 40px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .why-item {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 25px;
+            padding: 40px;
+            display: flex;
+            gap: 25px;
+            align-items: flex-start;
+            transition: all 0.3s ease;
+        }
+
+        .why-item:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateX(10px);
+        }
+
+        .why-item .icon {
+            font-size: 3em;
+            flex-shrink: 0;
+        }
+
+        .why-item h3 {
+            font-size: 1.5em;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .why-item p {
+            font-size: 1.1em;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+
+        /* ==================== COMPARISON SECTION ==================== */
+        .comparison-section {
+            background: #fff;
+            color: #1a1a2e;
+            padding: 100px 40px;
+        }
+
+        .comparison-table {
+            max-width: 1000px;
+            margin: 0 auto;
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+            border-radius: 25px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        }
+
+        .comparison-table th {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 25px 30px;
+            font-size: 1.2em;
+            font-weight: 700;
+        }
+
+        .comparison-table td {
+            padding: 22px 30px;
+            border-bottom: 1px solid #eee;
+            font-size: 1.05em;
+        }
+
+        .comparison-table tr:nth-child(even) {
+            background: #f8f9ff;
+        }
+
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .comparison-table td:first-child {
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+
+        .comparison-table td:nth-child(2) {
+            color: #ef4444;
+            text-align: center;
+        }
+
+        .comparison-table td:nth-child(3) {
+            color: #22c55e;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        /* ==================== ROI SECTION ==================== */
+        .roi-section {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 100px 40px;
+            text-align: center;
+        }
+
+        .roi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 40px;
+            max-width: 1100px;
+            margin: 50px auto 0;
+        }
+
+        .roi-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 25px;
+            padding: 40px 20px;
+            transition: all 0.3s ease;
+        }
+
+        .roi-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: scale(1.05);
+        }
+
+        .roi-item .number {
+            font-size: 3.5em;
+            font-weight: 900;
+            background: linear-gradient(135deg, #ffd700, #f59e0b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .roi-item .label {
+            font-size: 1em;
+            opacity: 0.8;
+            margin-top: 10px;
+        }
+
+        /* ==================== GUARANTEE SECTION ==================== */
+        .guarantee-section {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            padding: 80px 40px;
+            text-align: center;
+        }
+
+        .guarantee-section h2 {
+            font-size: 3em;
+            font-weight: 800;
+            margin-bottom: 25px;
+        }
+
+        .guarantee-section p {
+            font-size: 1.4em;
+            max-width: 800px;
+            margin: 0 auto 40px;
+            line-height: 1.7;
+        }
+
+        .guarantee-badge {
+            background: white;
+            color: #d97706;
+            padding: 25px 60px;
+            border-radius: 60px;
+            display: inline-block;
+            font-size: 1.8em;
+            font-weight: 800;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        /* ==================== CTA SECTION ==================== */
+        .cta-section {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 50%, #15803d 100%);
+            padding: 100px 40px;
+            text-align: center;
+        }
+
+        .cta-section h2 {
+            font-size: 3.5em;
+            font-weight: 800;
+            margin-bottom: 20px;
+        }
+
+        .cta-section p {
+            font-size: 1.5em;
+            opacity: 0.9;
+            margin-bottom: 50px;
+        }
+
+        .cta-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+            margin-bottom: 50px;
+        }
+
+        .cta-btn {
+            padding: 25px 60px;
+            font-size: 1.3em;
+            font-weight: 700;
+            border-radius: 60px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .cta-btn:hover {
+            transform: scale(1.08);
+        }
+
+        .cta-btn.primary {
+            background: white;
+            color: #16a34a;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .cta-btn.secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 3px solid white;
+        }
+
+        .cta-final-price {
+            font-size: 2.2em;
+            font-weight: 900;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        /* ==================== FOOTER ==================== */
+        .footer {
+            background: #0a0a0a;
+            padding: 60px 40px;
+            text-align: center;
+        }
+
+        .footer-logo {
+            margin-bottom: 30px;
+        }
+
+        .footer-logo img {
+            height: 50px;
+            filter: brightness(0) invert(1);
+        }
+
+        .footer p {
+            opacity: 0.6;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .footer-tagline {
+            font-size: 1.5em;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+
+        @page {
+            size: A4;
+            margin: 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ==================== HERO ==================== -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="company-logo">
+                <img src="assets/broader_ai_logo.png" alt="Broader AI">
+            </div>
+
+            <h1>MODI</h1>
+            <h2>MEDICAL OPD DIGITAL INTELLIGENCE</h2>
+
+            <div class="hero-tagline">
+                🏥 आपकी Clinic को Smart बनाने का Complete Solution!
+            </div>
+
+            <div class="hero-stats">
+                <div class="stat-box">
+                    <div class="number">50+</div>
+                    <div class="label">Premium Features</div>
+                </div>
+                <div class="stat-box">
+                    <div class="number">5 Yrs</div>
+                    <div class="label">Full Warranty</div>
+                </div>
+                <div class="stat-box">
+                    <div class="number">24/7</div>
+                    <div class="label">Support Available</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== PRICE ==================== -->
+    <section class="price-section">
+        <div class="price-content">
+            <div class="price-label">💰 Complete Installation Package</div>
+            <div class="mega-price"><sup>₹</sup>55,000<sup>/-</sup></div>
+            <div class="price-subtitle">One-Time Payment | No Monthly Fees!</div>
+            <div class="warranty-badge">
+                🛡️ 5 YEARS WARRANTY
+                <span>Full Coverage | Complete Support</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== PACKAGE ==================== -->
+    <section class="package-section">
+        <div class="section-header">
+            <h2>📦 Package में क्या शामिल है?</h2>
+            <p>Complete Turnkey Solution - कोई Hidden Charges नहीं!</p>
+        </div>
+
+        <div class="package-grid">
+            <div class="package-item">
+                <div class="icon">💻</div>
+                <h3>Software License</h3>
+                <p>Lifetime License for All Features</p>
+            </div>
+            <div class="package-item">
+                <div class="icon">🔧</div>
+                <h3>Complete Installation</h3>
+                <p>Setup on All Your Devices</p>
+            </div>
+            <div class="package-item">
+                <div class="icon">🎓</div>
+                <h3>Staff Training</h3>
+                <p>Complete Training for Your Team</p>
+            </div>
+            <div class="package-item">
+                <div class="icon">🔄</div>
+                <h3>5 Years Updates</h3>
+                <p>Free Software Updates</p>
+            </div>
+            <div class="package-item">
+                <div class="icon">📞</div>
+                <h3>5 Years Support</h3>
+                <p>Priority Technical Support</p>
+            </div>
+            <div class="package-item">
+                <div class="icon">🛡️</div>
+                <h3>5 Years Warranty</h3>
+                <p>Full Coverage Guarantee</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== FEATURES ==================== -->
+    <section class="features-section">
+        <div class="section-header">
+            <h2 style="color: #1a1a2e;">🎯 50+ Premium Features</h2>
+            <p style="color: #666;">एक App में सब कुछ - Complete Clinic Management</p>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="icon">📅</div>
+                <h3>Smart Appointments</h3>
+                <p>Online booking, WhatsApp reminder, time slot management, follow-up alerts - सब automatic!</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon">💰</div>
+                <h3>Complete Billing</h3>
+                <p>Consultation fees, medicine bills, installments, payment history - everything tracked!</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon">📱</div>
+                <h3>SMS & WhatsApp</h3>
+                <p>Bulk SMS, birthday wishes, appointment reminders, promotional messages - एक click में!</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon">🖥️</div>
+                <h3>Waiting Room Display</h3>
+                <p>TV पर queue display, token system, wait time - Professional hospital feel!</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon">🤖</div>
+                <h3>AI Analytics</h3>
+                <p>Feedback analysis, staff reports, smart recommendations - Data-driven decisions!</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon">💊</div>
+                <h3>Medicine Database</h3>
+                <p>10,000+ medicines, dosage suggestions, prescription templates - Instant access!</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon">📊</div>
+                <h3>Reports & Analytics</h3>
+                <p>Daily, weekly, monthly reports, income tracking - One-click generation!</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon">🔒</div>
+                <h3>100% Secure</h3>
+                <p>Local storage, offline ready, your data stays with you - Complete privacy!</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon">📲</div>
+                <h3>Multi-Device</h3>
+                <p>Phone, Tablet, Computer - कहीं से भी access करें - Always connected!</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== SCREENSHOTS ==================== -->
+    <section class="screenshots-section">
+        <div class="section-header">
+            <h2>📸 App कैसा दिखता है?</h2>
+            <p>Real Screenshots - देखिए Premium Design!</p>
+        </div>
+
+        <div class="screenshots-grid">
+            <div class="screenshot-card">
+                <img src="assets/screenshots/doctor dashboard.png" alt="Doctor Dashboard">
+                <h4>Doctor Dashboard</h4>
+            </div>
+            <div class="screenshot-card">
+                <img src="assets/screenshots/staff dashboard.png" alt="Staff Dashboard">
+                <h4>Staff Dashboard</h4>
+            </div>
+            <div class="screenshot-card">
+                <img src="assets/screenshots/room display.png" alt="Waiting Room">
+                <h4>Waiting Room Display</h4>
+            </div>
+            <div class="screenshot-card">
+                <img src="assets/screenshots/report.png" alt="Reports">
+                <h4>Reports & Analytics</h4>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== WHY CHOOSE ==================== -->
+    <section class="why-section">
+        <div class="section-header">
+            <h2>💡 WHY क्यों?</h2>
+            <p>देखिए कैसे APPLICATION आपका काम आसान करता है!</p>
+        </div>
+
+        <div class="why-grid">
+            <div class="why-item">
+                <div class="icon">⏰</div>
+                <div>
+                    <h3>समय की बचत</h3>
+                    <p>रोज़ाना 2+ घंटे बचाएं! जो काम घंटों में होता था, अब minutes में!</p>
+                </div>
+            </div>
+            <div class="why-item">
+                <div class="icon">📋</div>
+                <div>
+                    <h3>No Paper Work</h3>
+                    <p>सब Digital! Files की tension खत्म, 2 second में search!</p>
+                </div>
+            </div>
+            <div class="why-item">
+                <div class="icon">💵</div>
+                <div>
+                    <h3>पैसा वसूल</h3>
+                    <p>One-time investment, 5 साल warranty! कोई monthly charge नहीं!</p>
+                </div>
+            </div>
+            <div class="why-item">
+                <div class="icon">🎯</div>
+                <div>
+                    <h3>Professional Image</h3>
+                    <p>Patients को लगेगा - "यह तो बड़े Hospital जैसा है!"</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== COMPARISON ==================== -->
+    <section class="comparison-section">
+        <div class="section-header">
+            <h2 style="color: #1a1a2e;">📊 Traditional vs MODI</h2>
+            <p style="color: #666;">पुराने तरीके बनाम Modern MODI - देखिए फर्क!</p>
+        </div>
+
+        <table class="comparison-table">
+            <tr>
+                <th>Feature</th>
+                <th>पुराना तरीका ❌</th>
+                <th>MODI ✅</th>
+            </tr>
+            <tr>
+                <td>Record Search</td>
+                <td>10+ मिनट files में ढूंढना</td>
+                <td>✅ 2 second में digital search</td>
+            </tr>
+            <tr>
+                <td>Appointment Reminder</td>
+                <td>Phone पर manual call करना</td>
+                <td>✅ Auto WhatsApp/SMS भेजना</td>
+            </tr>
+            <tr>
+                <td>Payment Tracking</td>
+                <td>Register में हाथ से लिखना</td>
+                <td>✅ Automatic calculation</td>
+            </tr>
+            <tr>
+                <td>Reports</td>
+                <td>घंटों की manual calculation</td>
+                <td>✅ One-click में तैयार</td>
+            </tr>
+            <tr>
+                <td>Data Security</td>
+                <td>Paper खो/खराब हो सकता है</td>
+                <td>✅ Secure digital backup</td>
+            </tr>
+            <tr>
+                <td>Clinic Image</td>
+                <td>Basic simple setup</td>
+                <td>✅ Modern Hospital feel</td>
+            </tr>
+        </table>
+    </section>
+
+    <!-- ==================== ROI ==================== -->
+    <section class="roi-section">
+        <div class="section-header">
+            <h2>📈 Investment पर Return</h2>
+            <p>देखिए MODI कैसे खुद का पैसा वसूल करता है!</p>
+        </div>
+
+        <div class="roi-grid">
+            <div class="roi-item">
+                <div class="number">2+ घंटे</div>
+                <div class="label">रोज़ाना Time बचत</div>
+            </div>
+            <div class="roi-item">
+                <div class="number">30%</div>
+                <div class="label">ज्यादा Appointments</div>
+            </div>
+            <div class="roi-item">
+                <div class="number">₹0</div>
+                <div class="label">Monthly Charges</div>
+            </div>
+            <div class="roi-item">
+                <div class="number">5 साल</div>
+                <div class="label">Full Warranty</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== GUARANTEE ==================== -->
+    <section class="guarantee-section">
+        <h2>🛡️ हमारी गारंटी</h2>
+        <p>हम अपने product के साथ 5 साल की comprehensive warranty देते हैं। अगर आप पूरी तरह संतुष्ट नहीं हैं, तो हम तब
+            तक काम करेंगे जब तक आप खुश नहीं हो जाते!</p>
+        <div class="guarantee-badge">💯 100% Satisfaction Guaranteed</div>
+    </section>
+
+    <!-- ==================== CTA ==================== -->
+    <section class="cta-section">
+        <h2>🚀 अभी Demo Book करें!</h2>
+        <p>सैकड़ों Doctors पहले ही Digital हो चुके हैं - अब आपकी बारी!</p>
+
+        <div class="cta-buttons">
+            <a href="tel:+918780547294" class="cta-btn primary">
+                📞 Call for Free Demo
+            </a>
+            <a href="https://wa.me/+919979711149" class="cta-btn secondary">
+                💬 WhatsApp करें
+            </a>
+        </div>
+
+        <div class="cta-final-price">
+            ₹55,000/- Only | 5 Years Warranty | Complete Installation
+        </div>
+    </section>
+
+    <!-- ==================== FOOTER ==================== -->
+    <footer class="footer">
+        <div class="footer-logo">
+            <img src="assets/broader_ai_logo.png" alt="Broader AI">
+        </div>
+        <p>Developed with ❤️ by Broader AI</p>
+        <div class="footer-tagline">Towards Automation 🤖</div>
+        <p style="margin-top: 30px; font-size: 0.9em; opacity: 0.5;">© 2025 Broader AI. All Rights Reserved.</p>
+    </footer>
+
+</body>
+
+</html>

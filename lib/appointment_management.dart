@@ -292,61 +292,81 @@ class _AppointmentManagementState extends State<AppointmentManagement> {
             ),
             const SizedBox(height: 20),
             
-            // Calendar View with TableCalendar
             Card(
               elevation: 4,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: TableCalendar(
-                  firstDay: DateTime.utc(2024, 1, 1),
-                  lastDay: DateTime.utc(2026, 12, 31),
-                  focusedDay: _focusedDate,
-                  selectedDayPredicate: (day) => isSameDay(_selectedDate, day),
-                  calendarFormat: _calendarFormat,
-                  onDaySelected: (selectedDay, focusedDay) {
-                    setState(() {
-                      _selectedDate = selectedDay;
-                      _focusedDate = focusedDay;
-                    });
-                    _loadAppointments();
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isMobile = constraints.maxWidth < 400;
+                    return TableCalendar(
+                      firstDay: DateTime.utc(2024, 1, 1),
+                      lastDay: DateTime.utc(2026, 12, 31),
+                      focusedDay: _focusedDate,
+                      selectedDayPredicate: (day) => isSameDay(_selectedDate, day),
+                      calendarFormat: _calendarFormat,
+                      rowHeight: isMobile ? 42 : 52,
+                      daysOfWeekHeight: isMobile ? 20 : 24,
+                      onDaySelected: (selectedDay, focusedDay) {
+                        setState(() {
+                          _selectedDate = selectedDay;
+                          _focusedDate = focusedDay;
+                        });
+                        _loadAppointments();
+                      },
+                      onFormatChanged: (format) {
+                        setState(() {
+                          _calendarFormat = format;
+                        });
+                      },
+                      onPageChanged: (focusedDay) {
+                        _focusedDate = focusedDay;
+                      },
+                      calendarStyle: CalendarStyle(
+                        todayDecoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        selectedDecoration: const BoxDecoration(
+                          color: Colors.blue,
+                          shape: BoxShape.circle,
+                        ),
+                        weekendTextStyle: const TextStyle(color: Colors.red),
+                        outsideDaysVisible: false,
+                        cellMargin: EdgeInsets.all(isMobile ? 2 : 4),
+                      ),
+                      daysOfWeekStyle: DaysOfWeekStyle(
+                        weekdayStyle: TextStyle(
+                          fontSize: isMobile ? 11 : 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        weekendStyle: TextStyle(
+                          fontSize: isMobile ? 11 : 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
+                        ),
+                      ),
+                      headerStyle: HeaderStyle(
+                        formatButtonVisible: true,
+                        titleCentered: true,
+                        formatButtonShowsNext: false,
+                        titleTextStyle: TextStyle(fontSize: isMobile ? 14 : 17),
+                        formatButtonTextStyle: TextStyle(fontSize: isMobile ? 11 : 14),
+                      ),
+                      calendarBuilders: CalendarBuilders(
+                        defaultBuilder: (context, day, focusedDay) {
+                          return _buildCalendarDay(day);
+                        },
+                        selectedBuilder: (context, day, focusedDay) {
+                          return _buildCalendarDay(day, isSelected: true);
+                        },
+                        todayBuilder: (context, day, focusedDay) {
+                          return _buildCalendarDay(day, isToday: true);
+                        },
+                      ),
+                    );
                   },
-                  onFormatChanged: (format) {
-                    setState(() {
-                      _calendarFormat = format;
-                    });
-                  },
-                  onPageChanged: (focusedDay) {
-                    _focusedDate = focusedDay;
-                  },
-                  calendarStyle: CalendarStyle(
-                    todayDecoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.5),
-                      shape: BoxShape.circle,
-                    ),
-                    selectedDecoration: const BoxDecoration(
-                      color: Colors.blue,
-                      shape: BoxShape.circle,
-                    ),
-                    weekendTextStyle: const TextStyle(color: Colors.red),
-                    outsideDaysVisible: false,
-                  ),
-                  headerStyle: const HeaderStyle(
-                    formatButtonVisible: true,
-                    titleCentered: true,
-                    formatButtonShowsNext: false,
-                  ),
-                  calendarBuilders: CalendarBuilders(
-                    defaultBuilder: (context, day, focusedDay) {
-                      return _buildCalendarDay(day);
-                    },
-                    selectedBuilder: (context, day, focusedDay) {
-                      return _buildCalendarDay(day, isSelected: true);
-                    },
-                    todayBuilder: (context, day, focusedDay) {
-                      return _buildCalendarDay(day, isToday: true);
-                    },
-                  ),
                 ),
               ),
             ),
@@ -449,67 +469,52 @@ class _AppointmentManagementState extends State<AppointmentManagement> {
     final only = DateTime(day.year, day.month, day.day);
     final isFestival = _festivalDates.containsKey(only);
     final isAvailable = _isDoctorAvailable(day);
-    final festivalName = isFestival ? _festivalDates[only] : null;
 
-    return Container(
-      margin: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: isSelected
-            ? Colors.blue
-            : isToday
-                ? Colors.blue.withOpacity(0.3)
-                : Colors.transparent,
-        shape: BoxShape.circle,
-        border: isFestival ? Border.all(color: Colors.orange, width: 2) : null,
-      ),
-      child: Stack(
-        children: [
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  '${day.day}',
-                  style: TextStyle(
-                    color: isSelected || isToday
-                        ? Colors.white
-                        : !isAvailable
-                            ? Colors.red
-                            : day.weekday == DateTime.sunday
-                                ? Colors.red
-                                : Colors.black,
-                    fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.normal,
-                  ),
+    return LayoutBuilder(
+      builder: (context, constraints) {   
+        final size = constraints.maxWidth < constraints.maxHeight 
+            ? constraints.maxWidth 
+            : constraints.maxHeight;
+        final isSmallScreen = size < 40;
+
+        return Container(
+          margin: EdgeInsets.all(isSmallScreen ? 2 : 4),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? Colors.blue
+                : isToday
+                    ? Colors.blue.withOpacity(0.3)
+                    : isFestival 
+                        ? Colors.orange.withOpacity(0.1)
+                        : Colors.transparent,
+            shape: BoxShape.circle,
+            border: isFestival 
+                ? Border.all(color: Colors.orange, width: isSmallScreen ? 1 : 2) 
+                : (!isAvailable ? Border.all(color: Colors.red.withOpacity(0.5), width: 1) : null),
+          ),
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '${day.day}',
+                style: TextStyle(
+                  fontSize: isSmallScreen ? 12 : 14,
+                  color: isSelected || isToday
+                      ? Colors.white
+                      : !isAvailable
+                          ? Colors.red
+                          : day.weekday == DateTime.sunday
+                              ? Colors.red
+                              : isFestival 
+                                  ? Colors.orange.shade800
+                                  : Colors.black,
+                  fontWeight: isSelected || isToday || isFestival ? FontWeight.bold : FontWeight.normal,
                 ),
-                if (festivalName != null && festivalName.length <= 10)
-                  Text(
-                    festivalName,
-                    style: TextStyle(
-                      fontSize: 8,
-                      color: isSelected ? Colors.white : Colors.orange,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
+              ),
             ),
           ),
-          if (!isAvailable)
-            const Positioned(
-              top: 2,
-              right: 2,
-              child: Icon(Icons.close, size: 12, color: Colors.red),
-            ),
-          if (isFestival)
-            const Positioned(
-              top: 2,
-              left: 2,
-              child: Text('🎉', style: TextStyle(fontSize: 10)),
-            ),
-        ],
-      ),
+        );
+      },
     );
   }
 

@@ -2,24 +2,17 @@
 <resources>
     <!-- Theme for Android 12+ with ANIMATED splash screen -->
     <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <!-- Dark blue background matching Flutter splash -->
+        <!-- ANIMATED icon - pulsing and rotating effect! -->
+        <!-- Animation duration -->
+        <item name="android:windowSplashScreenAnimationDuration">1500</item>
+        <!-- Icon background color -->
         <item name="android:forceDarkAllowed">false</item>
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
-        
-        <!-- Dark blue background matching Flutter splash -->
         <item name="android:windowSplashScreenBackground">#1a1a2e</item>
-        
-        <!-- ANIMATED icon - pulsing and rotating effect! -->
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_animated</item>
-        
-        <!-- Animation duration -->
-        <item name="android:windowSplashScreenAnimationDuration">1500</item>
-        
-        <!-- Icon background color -->
-        <item name="android:windowSplashScreenIconBackgroundColor">#1a1a2e</item>
     </style>
-    
     <!-- Normal theme after splash -->
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>

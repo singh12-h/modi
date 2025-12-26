@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'splash_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'onboarding_screen.dart';
 import 'welcome_page.dart';
 import 'login_signup_choice.dart';
@@ -13,19 +13,14 @@ import 'password_reset_tool.dart';
 import 'doctor_registration_page.dart';
 import 'forgot_password_page.dart';
 import 'patient_report_page.dart';
+import 'online_license_service.dart';
+import 'license_activation_page.dart';
 
 void main() {
-  print('========== APP STARTING ==========');
-  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-  
-  // Preserve native splash until Flutter is ready
-  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
-
-  print('Using temporary in-memory storage for testing');
-
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
-  print('App launched with temporary storage!');
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
@@ -36,7 +31,6 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'MODI - Medical OPD Digital Interface',
       
-      // Localization for English date picker
       locale: const Locale('en', 'US'),
       supportedLocales: const [
         Locale('en', 'US'),
@@ -52,11 +46,9 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
-      home: const SplashScreen(),
+      home: const StartupScreen(),
       
-      // Handle deep links with route generator
       onGenerateRoute: (settings) {
-        // Handle /patient-report?data=BASE64_DATA
         if (settings.name != null && settings.name!.startsWith('/patient-report')) {
           final uri = Uri.parse(settings.name!);
           final encodedData = uri.queryParameters['data'];
@@ -65,10 +57,7 @@ class MyApp extends StatelessWidget {
           );
         }
         
-        // Default routes
         switch (settings.name) {
-          case '/splash':
-            return MaterialPageRoute(builder: (_) => const SplashScreen());
           case '/onboarding':
             return MaterialPageRoute(builder: (_) => const OnboardingScreen());
           case '/welcome':
@@ -90,10 +79,110 @@ class MyApp extends StatelessWidget {
           case '/forgot-password':
             return MaterialPageRoute(builder: (_) => const ForgotPasswordPage());
           default:
-            return MaterialPageRoute(builder: (_) => const SplashScreen());
+            return MaterialPageRoute(builder: (_) => const WelcomePage());
         }
       },
     );
   }
 }
 
+// Quick startup screen - checks status and navigates
+class StartupScreen extends StatefulWidget {
+  const StartupScreen({super.key});
+
+  @override
+  State<StartupScreen> createState() => _StartupScreenState();
+}
+
+class _StartupScreenState extends State<StartupScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _checkAndNavigate();
+  }
+
+  Future<void> _checkAndNavigate() async {
+    // Check connectivity
+    final connectivity = await Connectivity().checkConnectivity();
+    final hasInternet = connectivity.contains(ConnectivityResult.mobile) ||
+                        connectivity.contains(ConnectivityResult.wifi) ||
+                        connectivity.contains(ConnectivityResult.ethernet);
+
+    if (!mounted) return;
+
+    if (!hasInternet) {
+      _showNoInternetDialog();
+      return;
+    }
+
+    // Initialize license service (runs quickly in background)
+    await OnlineLicenseService.initializeDemoIfNeeded();
+    await OnlineLicenseService.initialize();
+    
+    if (!mounted) return;
+
+    // Check license
+    final licenseStatus = await OnlineLicenseService.checkLicenseStatus();
+    
+    if (!mounted) return;
+
+    if (licenseStatus == LicenseStatus.expired || licenseStatus == LicenseStatus.notFound) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const LicenseActivationPage()),
+      );
+      return;
+    }
+
+    // Check onboarding
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => hasSeenOnboarding ? const WelcomePage() : const OnboardingScreen(),
+      ),
+    );
+  }
+
+  void _showNoInternetDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1a1a2e),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.wifi_off, color: Colors.redAccent, size: 28),
+            SizedBox(width: 12),
+            Text('No Internet', style: TextStyle(color: Colors.white)),
+          ],
+        ),
+        content: const Text(
+          'Please check your internet connection and try again.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _checkAndNavigate();
+            },
+            child: const Text('RETRY', style: TextStyle(color: Color(0xFF00d4ff))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Same background as native splash for seamless transition
+    return const Scaffold(
+      backgroundColor: Color(0xFF1a1a2e),
+      body: SizedBox.shrink(),
+    );
+  }
+}

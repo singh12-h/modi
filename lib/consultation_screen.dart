@@ -82,62 +82,204 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
     });
   }
 
+  // Medicine database for autocomplete
+  final List<String> _medicineDatabase = [
+    'Tab. Paracetamol 500mg',
+    'Tab. Paracetamol 650mg',
+    'Tab. Ibuprofen 400mg',
+    'Tab. Ibuprofen 200mg',
+    'Tab. Azithromycin 500mg',
+    'Tab. Azithromycin 250mg',
+    'Tab. Amoxicillin 500mg',
+    'Cap. Amoxicillin 250mg',
+    'Tab. Cetirizine 10mg',
+    'Tab. Levocetirizine 5mg',
+    'Tab. Omeprazole 20mg',
+    'Cap. Omeprazole 40mg',
+    'Tab. Pantoprazole 40mg',
+    'Tab. Ranitidine 150mg',
+    'Tab. Metformin 500mg',
+    'Tab. Metformin 850mg',
+    'Tab. Atorvastatin 10mg',
+    'Tab. Atorvastatin 20mg',
+    'Tab. Amlodipine 5mg',
+    'Tab. Amlodipine 10mg',
+    'Tab. Losartan 50mg',
+    'Tab. Telmisartan 40mg',
+    'Tab. Aspirin 75mg',
+    'Tab. Clopidogrel 75mg',
+    'Tab. Montelukast 10mg',
+    'Tab. Doxycycline 100mg',
+    'Tab. Ciprofloxacin 500mg',
+    'Tab. Ofloxacin 200mg',
+    'Tab. Metronidazole 400mg',
+    'Tab. Ondansetron 4mg',
+    'Tab. Domperidone 10mg',
+    'Tab. Diclofenac 50mg',
+    'Tab. Aceclofenac 100mg',
+    'Tab. Tramadol 50mg',
+    'Tab. Gabapentin 300mg',
+    'Tab. Pregabalin 75mg',
+    'Syp. Ambroxol 30ml',
+    'Syp. Salbutamol 100ml',
+    'Syp. Cough Relief 100ml',
+    'Syp. Multivitamin 200ml',
+    'Inj. Diclofenac 75mg',
+    'Inj. Ondansetron 4mg',
+    'Drops. Eye lubricant',
+    'Cream. Clotrimazole 1%',
+    'Oint. Betamethasone 0.1%',
+  ];
+
   void _addMedicine() {
+    final nameController = TextEditingController();
+    final dosageController = TextEditingController();
+    final frequencyController = TextEditingController();
+    final instructionsController = TextEditingController();
+    List<String> suggestions = [];
+    
     showDialog(
       context: context,
       builder: (context) {
-        final nameController = TextEditingController();
-        final dosageController = TextEditingController();
-        final frequencyController = TextEditingController();
-        final instructionsController = TextEditingController();
-        
-        return AlertDialog(
-          title: const Text('Add Medicine'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Medicine Name'),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.medication, color: Colors.green),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text('Add Medicine'),
+                ],
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Medicine Name with Autocomplete
+                      TextField(
+                        controller: nameController,
+                        decoration: InputDecoration(
+                          labelText: 'Medicine Name *',
+                          hintText: 'Type to search...',
+                          prefixIcon: const Icon(Icons.search, color: Colors.green),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            if (value.length >= 2) {
+                              suggestions = _medicineDatabase
+                                  .where((m) => m.toLowerCase().contains(value.toLowerCase()))
+                                  .take(5)
+                                  .toList();
+                            } else {
+                              suggestions = [];
+                            }
+                          });
+                        },
+                      ),
+                      // Suggestions
+                      if (suggestions.isNotEmpty)
+                        Container(
+                          constraints: const BoxConstraints(maxHeight: 150),
+                          margin: const EdgeInsets.only(top: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            border: Border.all(color: Colors.grey[300]!),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: suggestions.length,
+                            itemBuilder: (context, index) {
+                              return ListTile(
+                                dense: true,
+                                leading: const Icon(Icons.medication, size: 18, color: Colors.green),
+                                title: Text(suggestions[index], style: const TextStyle(fontSize: 14)),
+                                onTap: () {
+                                  nameController.text = suggestions[index];
+                                  setState(() => suggestions = []);
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: dosageController,
+                        decoration: InputDecoration(
+                          labelText: 'Dosage *',
+                          hintText: 'e.g., 1-0-1',
+                          prefixIcon: const Icon(Icons.schedule, color: Colors.blue),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: frequencyController,
+                        decoration: InputDecoration(
+                          labelText: 'Duration',
+                          hintText: 'e.g., 5 days',
+                          prefixIcon: const Icon(Icons.timer, color: Colors.orange),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: instructionsController,
+                        decoration: InputDecoration(
+                          labelText: 'Instructions',
+                          hintText: 'e.g., After food',
+                          prefixIcon: const Icon(Icons.notes, color: Colors.purple),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                TextField(
-                  controller: dosageController,
-                  decoration: const InputDecoration(labelText: 'Dosage (e.g., 500mg)'),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
                 ),
-                TextField(
-                  controller: frequencyController,
-                  decoration: const InputDecoration(labelText: 'Frequency (e.g., Twice daily)'),
-                ),
-                TextField(
-                  controller: instructionsController,
-                  decoration: const InputDecoration(labelText: 'Instructions (optional)'),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    if (nameController.text.isNotEmpty && dosageController.text.isNotEmpty) {
+                      this.setState(() {
+                        _medicines.add({
+                          'name': nameController.text,
+                          'dosage': dosageController.text,
+                          'frequency': frequencyController.text,
+                          'instructions': instructionsController.text,
+                        });
+                      });
+                      Navigator.pop(context);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter medicine name and dosage')),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (nameController.text.isNotEmpty && dosageController.text.isNotEmpty) {
-                  setState(() {
-                    _medicines.add({
-                      'name': nameController.text,
-                      'dosage': dosageController.text,
-                      'frequency': frequencyController.text,
-                      'instructions': instructionsController.text,
-                    });
-                  });
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Add'),
-            ),
-          ],
+            );
+          },
         );
       },
     );

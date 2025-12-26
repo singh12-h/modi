@@ -58,8 +58,13 @@ dependencies:
   permission_handler: ^11.3.1
   image_cropper: ^8.0.2
   flutter_native_splash: ^2.4.4
-  connectivity_plus: ^6.0.3
-
+  connectivity_plus: ^7.0.0
+  flutter_image_compress: ^2.3.0
+  local_auth: ^2.1.6
+  
+  # Firebase for online license verification
+  firebase_core: ^3.8.1
+  cloud_firestore: ^5.6.0
 
 
 dev_dependencies:
@@ -115,3 +120,25 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# Native Splash - Logo with dark background for instant branded launch
+flutter_native_splash:
+  # Background color matching Flutter splash
+  color: "#1a1a2e"
+  
+  # App logo to display centered
+  image: assets/icon/app_icon.png
+  
+  # Android 12+ specific settings (adaptive icon)
+  android_12:
+    color: "#1a1a2e"
+    image: assets/icon/app_icon.png
+    icon_background_color: "#1a1a2e"
+  
+  # Enable fullscreen mode
+  fullscreen: true
+  
+  # Platform settings
+  android: true
+  ios: true
+  web: true

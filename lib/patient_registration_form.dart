@@ -12,6 +12,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'responsive_helper.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'dart:typed_data';
 
 class PatientRegistrationForm extends StatefulWidget {
   final Appointment? appointment;
@@ -204,6 +206,103 @@ class _PatientRegistrationFormState extends State<PatientRegistrationForm> {
   String? _webImagePath;
   final ImagePicker _picker = ImagePicker();
 
+  // ============ SMART IMAGE COMPRESSION TO ~50KB WITHOUT QUALITY LOSS ============
+  // This function intelligently compresses images to approximately 50KB
+  // while maintaining the best possible quality
+  Future<File?> _compressImageTo50KB(File imageFile) async {
+    try {
+      final int targetSize = 50 * 1024; // 50KB in bytes
+      final Uint8List originalBytes = await imageFile.readAsBytes();
+      final int originalSize = originalBytes.length;
+      
+      print('📸 Original image size: ${(originalSize / 1024).toStringAsFixed(2)} KB');
+      
+      // If already under 50KB, no compression needed
+      if (originalSize <= targetSize) {
+        print('✅ Image already under 50KB, no compression needed');
+        return imageFile;
+      }
+
+      // Calculate initial quality based on size ratio
+      // Higher original size = lower starting quality
+      int quality = (targetSize / originalSize * 100).clamp(20, 95).toInt();
+      int minWidth = 800;
+      int minHeight = 800;
+      
+      Uint8List? compressedBytes;
+      int attempts = 0;
+      const int maxAttempts = 10;
+      
+      // Iteratively compress until we hit target size or max attempts
+      while (attempts < maxAttempts) {
+        attempts++;
+        
+        compressedBytes = await FlutterImageCompress.compressWithList(
+          originalBytes,
+          minWidth: minWidth,
+          minHeight: minHeight,
+          quality: quality,
+          format: CompressFormat.jpeg,
+        );
+        
+        final int compressedSize = compressedBytes?.length ?? 0;
+        print('🔄 Attempt $attempts: Quality=$quality, Size=${(compressedSize / 1024).toStringAsFixed(2)} KB');
+        
+        if (compressedSize <= targetSize) {
+          print('✅ Target size achieved! Final size: ${(compressedSize / 1024).toStringAsFixed(2)} KB');
+          break;
+        }
+        
+        // Adjust parameters for next attempt
+        if (quality > 30) {
+          quality -= 10;
+        } else {
+          // If quality is already low, reduce dimensions
+          minWidth = (minWidth * 0.85).toInt();
+          minHeight = (minHeight * 0.85).toInt();
+          quality = 60; // Reset quality for new dimensions
+        }
+        
+        // Minimum dimension check
+        if (minWidth < 200 || minHeight < 200) {
+          print('⚠️ Reached minimum dimensions, using current compression');
+          break;
+        }
+      }
+      
+      if (compressedBytes != null && compressedBytes.isNotEmpty) {
+        // Save compressed image to a new file
+        final String dir = imageFile.parent.path;
+        final String newPath = '$dir/compressed_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final File compressedFile = File(newPath);
+        await compressedFile.writeAsBytes(compressedBytes);
+        
+        final int finalSize = await compressedFile.length();
+        print('✅ Compression complete!');
+        print('   Original: ${(originalSize / 1024).toStringAsFixed(2)} KB');
+        print('   Compressed: ${(finalSize / 1024).toStringAsFixed(2)} KB');
+        print('   Saved: ${((originalSize - finalSize) / 1024).toStringAsFixed(2)} KB (${((1 - finalSize / originalSize) * 100).toStringAsFixed(1)}%)');
+        
+        // Delete original cropped file to save space
+        try {
+          if (imageFile.existsSync() && imageFile.path != compressedFile.path) {
+            await imageFile.delete();
+          }
+        } catch (e) {
+          print('Warning: Could not delete original file: $e');
+        }
+        
+        return compressedFile;
+      }
+      
+      return imageFile;
+    } catch (e) {
+      print('❌ Error compressing image: $e');
+      return imageFile; // Return original if compression fails
+    }
+  }
+  // ============ END SMART COMPRESSION ============
+
   Future<void> _pickImage() async {
     // Show choice dialog
     showModalBottomSheet(
@@ -353,37 +452,87 @@ class _PatientRegistrationFormState extends State<PatientRegistrationForm> {
             ],
           );
           
+          File? imageToProcess;
           if (croppedFile != null) {
-            setState(() {
-              _selectedImage = File(croppedFile.path);
-            });
+            imageToProcess = File(croppedFile.path);
           } else {
             // User cancelled cropping, use original
-            setState(() {
-              _selectedImage = File(image.path);
-            });
+            imageToProcess = File(image.path);
+          }
+          
+          // Show loading indicator while compressing
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Text('Optimizing photo to 50KB...'),
+                  ],
+                ),
+                backgroundColor: Color(0xFF8E2DE2),
+                duration: Duration(seconds: 5),
+              ),
+            );
+          }
+          
+          // ✨ SMART COMPRESSION TO 50KB
+          final File? compressedImage = await _compressImageTo50KB(imageToProcess);
+          
+          setState(() {
+            _selectedImage = compressedImage ?? imageToProcess;
+          });
+          
+          // Show success with file size
+          if (mounted && compressedImage != null) {
+            final int fileSize = await compressedImage.length();
+            final String sizeText = (fileSize / 1024).toStringAsFixed(1);
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.white),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text('Photo optimized! Size: ${sizeText}KB ✨'),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 3),
+              ),
+            );
           }
         } else {
-          // Web - no cropping
+          // Web - no cropping or compression
           setState(() {
             _webImagePath = image.path;
           });
-        }
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.white),
-                  SizedBox(width: 10),
-                  Text('Photo selected successfully!'),
-                ],
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.white),
+                    SizedBox(width: 10),
+                    Text('Photo selected successfully!'),
+                  ],
+                ),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
               ),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
+            );
+          }
         }
       }
     } on PlatformException catch (e) {
@@ -523,7 +672,11 @@ class _PatientRegistrationFormState extends State<PatientRegistrationForm> {
   InputDecoration _inputDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, color: Colors.grey[400], size: 22),
+      prefixIcon: Padding(
+        padding: const EdgeInsets.only(top: 0),
+        child: Icon(icon, color: Colors.grey[400], size: 22),
+      ),
+      alignLabelWithHint: true,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(color: Colors.grey[200]!),
@@ -1506,49 +1659,61 @@ Thank you for choosing MODI CLINIC! 🙏''';
                   currentMonth.year == today.year;
             }
             
+            // Get screen size for responsive design
+            final screenWidth = MediaQuery.of(context).size.width;
+            final isMobile = screenWidth < 400;
+            final dialogWidth = isMobile ? screenWidth - 32 : 380.0;
+            final headerFontSize = isMobile ? 24.0 : 32.0;
+            final headerPadding = isMobile ? 16.0 : 24.0;
+            
             return Dialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+              insetPadding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 40, vertical: 24),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
               child: Container(
-                constraints: const BoxConstraints(maxWidth: 400),
+                constraints: BoxConstraints(
+                  maxWidth: dialogWidth,
+                  maxHeight: MediaQuery.of(context).size.height * 0.85, // Limit height to 85% of screen
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(32),
+                  borderRadius: BorderRadius.circular(24),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Header with selected date
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFF8E2DE2), Color(0xFFFF0080)],
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Header with selected date
+                      Container(
+                        padding: EdgeInsets.all(headerPadding),
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF8E2DE2), Color(0xFFFF0080)],
+                          ),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(24),
+                            topRight: Radius.circular(24),
+                          ),
                         ),
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(32),
-                          topRight: Radius.circular(32),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'SELECT DATE',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w300,
-                              letterSpacing: 1.5,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'SELECT DATE',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: isMobile ? 10 : 12,
+                                fontWeight: FontWeight.w300,
+                                letterSpacing: 1.5,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
                           Text(
                             '${weekDays[selectedDate.weekday % 7]}, ${monthNames[selectedDate.month - 1].substring(0, 3)} ${selectedDate.day}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
-                              fontSize: 32,
+                              fontSize: headerFontSize,
                               fontWeight: FontWeight.bold,
                               letterSpacing: -1,
                             ),
@@ -1588,8 +1753,8 @@ Thank you for choosing MODI CLINIC! 🙏''';
                                     child: Row(
                                       children: [
                                         Text(
-                                          monthNames[currentMonth.month - 1],
-                                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                          isMobile ? monthNames[currentMonth.month - 1].substring(0, 3) : monthNames[currentMonth.month - 1],
+                                          style: TextStyle(fontSize: isMobile ? 13 : 16, fontWeight: FontWeight.w600),
                                         ),
                                         Icon(
                                           showMonthPicker ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
@@ -1617,7 +1782,7 @@ Thank you for choosing MODI CLINIC! 🙏''';
                                       children: [
                                         Text(
                                           '${currentMonth.year}',
-                                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                          style: TextStyle(fontSize: isMobile ? 13 : 16, fontWeight: FontWeight.w600),
                                         ),
                                         Icon(
                                           showYearPicker ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
@@ -1646,36 +1811,39 @@ Thank you for choosing MODI CLINIC! 🙏''';
                     if (!showMonthPicker && !showYearPicker)
                       // Calendar Grid
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 16),
                         child: Column(
                           children: [
                             // Weekday headers
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: weekDays.map((day) => SizedBox(
-                                width: 40,
-                                height: 40,
-                                child: Center(
-                                  child: Text(
-                                    day,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: day == 'S' ? Colors.red[400] : Colors.grey[600],
+                              children: weekDays.map((day) => Expanded(
+                                child: SizedBox(
+                                  height: isMobile ? 32 : 40,
+                                  child: Center(
+                                    child: Text(
+                                      day,
+                                      style: TextStyle(
+                                        fontSize: isMobile ? 12 : 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: day == 'S' ? Colors.red[400] : Colors.grey[600],
+                                      ),
                                     ),
                                   ),
                                 ),
                               )).toList(),
                             ),
-                            const SizedBox(height: 8),
-                            // Calendar days - Using proper 7-column grid
+                            const SizedBox(height: 4),
+                            // Calendar days - Fixed height with proper grid
                             SizedBox(
-                              height: 240,
+                              height: isMobile ? 230 : 260,
                               child: GridView.builder(
                                 physics: const NeverScrollableScrollPhysics(),
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: 7,
-                                  childAspectRatio: 1,
+                                  childAspectRatio: isMobile ? 1.0 : 1.1,
+                                  mainAxisSpacing: isMobile ? 2 : 4,
+                                  crossAxisSpacing: isMobile ? 2 : 4,
                                 ),
                                 itemCount: 42, // 6 rows * 7 days
                                 itemBuilder: (context, index) {
@@ -1693,19 +1861,26 @@ Thank you for choosing MODI CLINIC! 🙏''';
                                       }
                                     },
                                     child: Container(
-                                      margin: const EdgeInsets.all(2),
                                       decoration: BoxDecoration(
-                                        gradient: selected ? const LinearGradient(
-                                          colors: [Color(0xFF8E2DE2), Color(0xFFFF0080)],
-                                        ) : null,
-                                        color: today && !selected ? const Color(0xFFF3E8FF) : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(20),
+                                        color: selected 
+                                            ? const Color(0xFF8E2DE2) // Solid purple for selected
+                                            : today 
+                                                ? const Color(0xFFF3E8FF) // Light purple for today
+                                                : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
+                                        boxShadow: selected ? [
+                                          BoxShadow(
+                                            color: const Color(0xFF8E2DE2).withOpacity(0.4),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ] : null,
                                       ),
                                       child: Center(
                                         child: day != null ? Text(
                                           '$day',
                                           style: TextStyle(
-                                            fontSize: 14,
+                                            fontSize: isMobile ? 13 : 14,
                                             fontWeight: selected || today ? FontWeight.bold : FontWeight.normal,
                                             color: selected ? Colors.white : Colors.black87,
                                           ),
@@ -1722,14 +1897,14 @@ Thank you for choosing MODI CLINIC! 🙏''';
                     else if (showMonthPicker)
                       // Month Picker Grid
                       Container(
-                        height: 200,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        height: isMobile ? 160 : 200,
+                        padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 16),
                         child: GridView.builder(
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 3,
-                            childAspectRatio: 2,
-                            crossAxisSpacing: 8,
-                            mainAxisSpacing: 8,
+                            childAspectRatio: isMobile ? 2.2 : 2,
+                            crossAxisSpacing: isMobile ? 4 : 8,
+                            mainAxisSpacing: isMobile ? 4 : 8,
                           ),
                           itemCount: 12,
                           itemBuilder: (context, index) {
@@ -1751,7 +1926,7 @@ Thank you for choosing MODI CLINIC! 🙏''';
                                   child: Text(
                                     monthNames[index].substring(0, 3),
                                     style: TextStyle(
-                                      fontSize: 14,
+                                      fontSize: isMobile ? 12 : 14,
                                       fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                                       color: isSelected ? Colors.white : Colors.black87,
                                     ),
@@ -1763,16 +1938,17 @@ Thank you for choosing MODI CLINIC! 🙏''';
                         ),
                       )
                     else
-                      // Year Picker Grid
+                      // Year Picker Grid - Scrollable with better height
                       Container(
-                        height: 200,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        height: isMobile ? 220 : 280,
+                        padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 16),
                         child: GridView.builder(
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            childAspectRatio: 2,
-                            crossAxisSpacing: 8,
-                            mainAxisSpacing: 8,
+                          physics: const BouncingScrollPhysics(), // Better scrolling
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 4, // 4 columns for better fit
+                            childAspectRatio: isMobile ? 1.8 : 2,
+                            crossAxisSpacing: isMobile ? 6 : 10,
+                            mainAxisSpacing: isMobile ? 6 : 10,
                           ),
                           itemCount: DateTime.now().year - 1919,
                           itemBuilder: (context, index) {
@@ -1789,13 +1965,13 @@ Thank you for choosing MODI CLINIC! 🙏''';
                                     colors: [Color(0xFF8E2DE2), Color(0xFFFF0080)],
                                   ) : null,
                                   color: isSelected ? null : Colors.grey[100],
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Center(
                                   child: Text(
                                     '$year',
                                     style: TextStyle(
-                                      fontSize: 14,
+                                      fontSize: isMobile ? 12 : 14,
                                       fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                                       color: isSelected ? Colors.white : Colors.black87,
                                     ),
@@ -1809,7 +1985,7 @@ Thank you for choosing MODI CLINIC! 🙏''';
                     
                     // Action Buttons
                     Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.all(isMobile ? 12 : 16),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
@@ -1817,24 +1993,25 @@ Thank you for choosing MODI CLINIC! 🙏''';
                             onPressed: () => Navigator.pop(dialogContext),
                             child: Text(
                               'Cancel',
-                              style: TextStyle(color: Colors.grey[600], fontSize: 16, fontWeight: FontWeight.w600),
+                              style: TextStyle(color: Colors.grey[600], fontSize: isMobile ? 14 : 16, fontWeight: FontWeight.w600),
                             ),
                           ),
-                          const SizedBox(width: 16),
+                          SizedBox(width: isMobile ? 8 : 16),
                           ElevatedButton(
                             onPressed: () => Navigator.pop(dialogContext, selectedDate),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF8E2DE2),
-                              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                              padding: EdgeInsets.symmetric(horizontal: isMobile ? 20 : 32, vertical: isMobile ? 10 : 12),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               elevation: 0,
                             ),
-                            child: const Text('OK', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                            child: Text('OK', style: TextStyle(color: Colors.white, fontSize: isMobile ? 14 : 16, fontWeight: FontWeight.w600)),
                           ),
                         ],
                       ),
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );

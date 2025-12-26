@@ -125,7 +125,7 @@ class DatabaseHelper {
     print('Opening database at $path'); // Debug
     return await openDatabase(
       path,
-      version: 14,
+      version: 15,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
       onOpen: (db) async {
@@ -333,6 +333,26 @@ class DatabaseHelper {
         print('birth_date column might already exist: $e');
       }
     }
+    if (oldVersion < 15) {
+      // Patient Feedback Table for storing patient reviews and ratings
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS patient_feedback (
+          id TEXT PRIMARY KEY,
+          patient_id TEXT,
+          patient_name TEXT NOT NULL,
+          overall_rating INTEGER NOT NULL,
+          doctor_rating INTEGER NOT NULL,
+          staff_rating INTEGER NOT NULL,
+          cleanliness_rating INTEGER NOT NULL,
+          waiting_time_rating INTEGER NOT NULL,
+          comments TEXT,
+          sentiment TEXT,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY (patient_id) REFERENCES patients (id)
+        )
+      ''');
+      print('Created patient_feedback table');
+    }
   }
 
   Future _createDB(Database db, int version) async {
@@ -493,6 +513,23 @@ class DatabaseHelper {
         receipt_number TEXT NOT NULL UNIQUE,
         notes TEXT,
         FOREIGN KEY (payment_id) REFERENCES payment_installments (id)
+      )
+    ''');
+    // Patient Feedback Table - For storing patient reviews
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS patient_feedback (
+        id TEXT PRIMARY KEY,
+        patient_id TEXT,
+        patient_name TEXT NOT NULL,
+        overall_rating INTEGER NOT NULL,
+        doctor_rating INTEGER NOT NULL,
+        staff_rating INTEGER NOT NULL,
+        cleanliness_rating INTEGER NOT NULL,
+        waiting_time_rating INTEGER NOT NULL,
+        comments TEXT,
+        sentiment TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (patient_id) REFERENCES patients (id)
       )
     ''');
   }
@@ -1578,6 +1615,307 @@ class DatabaseHelper {
     final db = await database;
     await db.delete('payment_transactions', where: 'payment_id = ?', whereArgs: [id]);
     return await db.delete('payment_installments', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ==================== PATIENT FEEDBACK OPERATIONS ====================
+  
+  static final List<PatientFeedback> _webFeedback = [];
+
+  // Insert patient feedback
+  Future<int> insertPatientFeedback(PatientFeedback feedback) async {
+    if (kIsWeb) {
+      _webFeedback.add(feedback);
+      return 1;
+    }
+    final db = await database;
+    return await db.insert('patient_feedback', feedback.toMap());
+  }
+
+  // Get all feedback
+  Future<List<PatientFeedback>> getAllFeedback() async {
+    if (kIsWeb) {
+      return List.from(_webFeedback)..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+    final db = await database;
+    final maps = await db.query('patient_feedback', orderBy: 'created_at DESC');
+    return List.generate(maps.length, (i) => PatientFeedback.fromMap(maps[i]));
+  }
+
+  // Get feedback statistics - for Settings analytics
+  Future<Map<String, dynamic>> getFeedbackStatistics() async {
+    final allFeedback = await getAllFeedback();
+    
+    if (allFeedback.isEmpty) {
+      return {
+        'totalReviews': 0,
+        'avgOverall': 0.0,
+        'avgDoctor': 0.0,
+        'avgStaff': 0.0,
+        'avgCleanliness': 0.0,
+        'avgWaitingTime': 0.0,
+        'positiveCount': 0,
+        'neutralCount': 0,
+        'negativeCount': 0,
+        'staffBehavior': 'No Data',
+        'aiSuggestion': 'No feedback data available yet.',
+      };
+    }
+
+    double avgOverall = allFeedback.map((f) => f.overallRating).reduce((a, b) => a + b) / allFeedback.length;
+    double avgDoctor = allFeedback.map((f) => f.doctorRating).reduce((a, b) => a + b) / allFeedback.length;
+    double avgStaff = allFeedback.map((f) => f.staffRating).reduce((a, b) => a + b) / allFeedback.length;
+    double avgCleanliness = allFeedback.map((f) => f.cleanlinessRating).reduce((a, b) => a + b) / allFeedback.length;
+    double avgWaitingTime = allFeedback.map((f) => f.waitingTimeRating).reduce((a, b) => a + b) / allFeedback.length;
+
+    // Sentiment analysis based on ratings
+    int positiveCount = allFeedback.where((f) => f.overallRating >= 4).length;
+    int neutralCount = allFeedback.where((f) => f.overallRating == 3).length;
+    int negativeCount = allFeedback.where((f) => f.overallRating <= 2).length;
+
+    // AI-like staff behavior analysis
+    String staffBehavior;
+    String aiSuggestion;
+    
+    if (avgStaff >= 4.5) {
+      staffBehavior = '😊 EXCELLENT - Very Polite';
+      aiSuggestion = '✨ Excellent work! Staff is receiving outstanding feedback. Patients love the courteous behavior. Keep up the great work!';
+    } else if (avgStaff >= 4.0) {
+      staffBehavior = '🙂 GOOD - Polite';
+      aiSuggestion = '👍 Good performance! Staff behavior is appreciated by patients. Minor improvements in attentiveness could help reach excellence.';
+    } else if (avgStaff >= 3.0) {
+      staffBehavior = '😐 AVERAGE - Needs Improvement';
+      aiSuggestion = '⚠️ Staff behavior is average. Consider training on patient communication, active listening, and empathy to improve patient experience.';
+    } else if (avgStaff >= 2.0) {
+      staffBehavior = '😕 POOR - Rude Behavior Reported';
+      aiSuggestion = '🚨 Warning: Patients are reporting unsatisfactory staff behavior. Immediate attention needed! Conduct staff meeting and implement customer service training.';
+    } else {
+      staffBehavior = '😡 CRITICAL - Very Rude';
+      aiSuggestion = '🔴 CRITICAL ALERT: Multiple complaints about rude staff behavior. This is affecting patient satisfaction severely. Take immediate action - counseling, training, or personnel review required.';
+    }
+
+    // Add waiting time suggestion
+    if (avgWaitingTime < 3.0) {
+      aiSuggestion += '\n\n⏰ Note: Waiting time ratings are low. Consider improving appointment scheduling or adding more staff during peak hours.';
+    }
+
+    return {
+      'totalReviews': allFeedback.length,
+      'avgOverall': avgOverall,
+      'avgDoctor': avgDoctor,
+      'avgStaff': avgStaff,
+      'avgCleanliness': avgCleanliness,
+      'avgWaitingTime': avgWaitingTime,
+      'positiveCount': positiveCount,
+      'neutralCount': neutralCount,
+      'negativeCount': negativeCount,
+      'staffBehavior': staffBehavior,
+      'aiSuggestion': aiSuggestion,
+      'recentFeedback': allFeedback.take(5).toList(),
+    };
+  }
+  // ==================== BACKUP & RESTORE ====================
+  
+  /// Export all database data to a JSON string for backup
+  Future<String> exportBackupData() async {
+    final backupData = <String, dynamic>{
+      'backupVersion': 1,
+      'backupDate': DateTime.now().toIso8601String(),
+      'appName': 'MODI - Medical OPD',
+    };
+
+    if (kIsWeb) {
+      backupData['patients'] = _webPatients.map((p) => p.toMap()).toList();
+      backupData['appointments'] = _webAppointments.map((a) => a.toMap()).toList();
+      backupData['staff'] = _webStaff.map((s) => s.toMap()).toList();
+      backupData['medicalHistory'] = _webMedicalHistory.map((m) => m.toMap()).toList();
+      backupData['prescriptions'] = _webPrescriptions.map((p) => p.toMap()).toList();
+      backupData['consultations'] = _webConsultations.map((c) => c.toMap()).toList();
+    } else {
+      final db = await database;
+      
+      // Export all tables
+      final patients = await db.query('patients');
+      backupData['patients'] = patients;
+      
+      final appointments = await db.query('appointments');
+      backupData['appointments'] = appointments;
+      
+      final staff = await db.query('staff');
+      backupData['staff'] = staff;
+      
+      final medicalHistory = await db.query('medical_history');
+      backupData['medicalHistory'] = medicalHistory;
+      
+      final prescriptions = await db.query('prescriptions');
+      backupData['prescriptions'] = prescriptions;
+      
+      final consultations = await db.query('consultations');
+      backupData['consultations'] = consultations;
+      
+      final payments = await db.query('payments');
+      backupData['payments'] = payments;
+      
+      final paymentInstallments = await db.query('payment_installments');
+      backupData['paymentInstallments'] = paymentInstallments;
+      
+      final paymentTransactions = await db.query('payment_transactions');
+      backupData['paymentTransactions'] = paymentTransactions;
+      
+      final feedback = await db.query('patient_feedback');
+      backupData['patientFeedback'] = feedback;
+    }
+
+    final jsonString = jsonEncode(backupData);
+    print('📦 Backup created: ${(jsonString.length / 1024).toStringAsFixed(2)} KB');
+    return jsonString;
+  }
+
+  /// Get backup statistics without creating full backup
+  Future<Map<String, int>> getBackupStats() async {
+    if (kIsWeb) {
+      return {
+        'patients': _webPatients.length,
+        'appointments': _webAppointments.length,
+        'staff': _webStaff.length,
+        'prescriptions': _webPrescriptions.length,
+        'consultations': _webConsultations.length,
+      };
+    }
+    
+    final db = await database;
+    return {
+      'patients': Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM patients')) ?? 0,
+      'appointments': Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM appointments')) ?? 0,
+      'staff': Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM staff')) ?? 0,
+      'prescriptions': Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM prescriptions')) ?? 0,
+      'consultations': Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM consultations')) ?? 0,
+      'payments': Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM payments')) ?? 0,
+      'paymentInstallments': Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM payment_installments')) ?? 0,
+      'feedback': Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM patient_feedback')) ?? 0,
+    };
+  }
+
+  /// Restore data from a JSON backup string
+  Future<Map<String, dynamic>> restoreFromBackup(String jsonString) async {
+    try {
+      final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
+      
+      // Validate backup
+      if (!backupData.containsKey('backupVersion') || !backupData.containsKey('patients')) {
+        return {'success': false, 'error': 'Invalid backup file format'};
+      }
+
+      int patientsRestored = 0;
+      int appointmentsRestored = 0;
+      int staffRestored = 0;
+
+      if (kIsWeb) {
+        // Clear existing data
+        _webPatients.clear();
+        _webAppointments.clear();
+        // Don't clear staff to preserve login credentials
+        
+        // Restore patients
+        if (backupData['patients'] != null) {
+          for (var p in backupData['patients']) {
+            _webPatients.add(Patient.fromMap(p));
+            patientsRestored++;
+          }
+        }
+        
+        // Restore appointments
+        if (backupData['appointments'] != null) {
+          for (var a in backupData['appointments']) {
+            _webAppointments.add(Appointment.fromMap(a));
+            appointmentsRestored++;
+          }
+        }
+        
+        await _saveWebData();
+      } else {
+        final db = await database;
+        
+        // Use transaction for safety
+        await db.transaction((txn) async {
+          // Restore patients
+          if (backupData['patients'] != null) {
+            for (var p in backupData['patients']) {
+              await txn.insert('patients', Map<String, dynamic>.from(p), 
+                conflictAlgorithm: ConflictAlgorithm.replace);
+              patientsRestored++;
+            }
+          }
+          
+          // Restore appointments
+          if (backupData['appointments'] != null) {
+            for (var a in backupData['appointments']) {
+              await txn.insert('appointments', Map<String, dynamic>.from(a),
+                conflictAlgorithm: ConflictAlgorithm.replace);
+              appointmentsRestored++;
+            }
+          }
+          
+          // Restore prescriptions
+          if (backupData['prescriptions'] != null) {
+            for (var p in backupData['prescriptions']) {
+              await txn.insert('prescriptions', Map<String, dynamic>.from(p),
+                conflictAlgorithm: ConflictAlgorithm.replace);
+            }
+          }
+          
+          // Restore consultations
+          if (backupData['consultations'] != null) {
+            for (var c in backupData['consultations']) {
+              await txn.insert('consultations', Map<String, dynamic>.from(c),
+                conflictAlgorithm: ConflictAlgorithm.replace);
+            }
+          }
+          
+          // Restore payments
+          if (backupData['payments'] != null) {
+            for (var p in backupData['payments']) {
+              await txn.insert('payments', Map<String, dynamic>.from(p),
+                conflictAlgorithm: ConflictAlgorithm.replace);
+            }
+          }
+          
+          // Restore payment installments
+          if (backupData['paymentInstallments'] != null) {
+            for (var p in backupData['paymentInstallments']) {
+              await txn.insert('payment_installments', Map<String, dynamic>.from(p),
+                conflictAlgorithm: ConflictAlgorithm.replace);
+            }
+          }
+          
+          // Restore feedback
+          if (backupData['patientFeedback'] != null) {
+            for (var f in backupData['patientFeedback']) {
+              await txn.insert('patient_feedback', Map<String, dynamic>.from(f),
+                conflictAlgorithm: ConflictAlgorithm.replace);
+            }
+          }
+        });
+      }
+
+      print('✅ Restore complete: $patientsRestored patients, $appointmentsRestored appointments');
+      
+      return {
+        'success': true,
+        'patientsRestored': patientsRestored,
+        'appointmentsRestored': appointmentsRestored,
+        'backupDate': backupData['backupDate'],
+      };
+    } catch (e) {
+      print('🔴 Restore error: $e');
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// Get database file path (for direct file backup on mobile)
+  Future<String?> getDatabasePath() async {
+    if (kIsWeb) return null;
+    final dbPath = await getDatabasesPath();
+    return join(dbPath, 'patients.db');
   }
 
   Future close() async {

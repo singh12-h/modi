@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:ui';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PatientQrCode extends StatefulWidget {
   final Patient? patient;
@@ -20,14 +21,25 @@ class PatientQrCode extends StatefulWidget {
 class _PatientQrCodeState extends State<PatientQrCode> {
   List<Patient> _patients = [];
   bool _isLoading = true;
+  String? _feedbackFormUrl;
 
   @override
   void initState() {
     super.initState();
+    _loadFeedbackUrl();
     if (widget.patient == null && widget.scannedData == null) {
       _loadPatients();
     } else {
       _isLoading = false;
+    }
+  }
+
+  Future<void> _loadFeedbackUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _feedbackFormUrl = prefs.getString('feedback_form_url');
+      });
     }
   }
 
@@ -878,8 +890,120 @@ class _PatientQrCodeState extends State<PatientQrCode> {
                 ],
               ),
             ),
-            
             const SizedBox(height: 24),
+            
+            // ============ FEEDBACK QR CODE SECTION ============
+            if (_feedbackFormUrl != null && _feedbackFormUrl!.isNotEmpty) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.amber.shade50,
+                      Colors.orange.shade50,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.amber.shade200),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.amber.withOpacity(0.1),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.amber,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.star, color: Colors.white, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '⭐ Rate Your Experience',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF92400E),
+                              ),
+                            ),
+                            Text(
+                              'Scan to share your feedback',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFFB45309),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.amber.shade300),
+                      ),
+                      child: QrImageView(
+                        data: _feedbackFormUrl!,
+                        version: QrVersions.auto,
+                        size: 140.0,
+                        backgroundColor: Colors.white,
+                        eyeStyle: const QrEyeStyle(
+                          eyeShape: QrEyeShape.square,
+                          color: Color(0xFFD97706),
+                        ),
+                        dataModuleStyle: const QrDataModuleStyle(
+                          dataModuleShape: QrDataModuleShape.square,
+                          color: Color(0xFF92400E),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.qr_code_scanner, size: 16, color: Color(0xFF92400E)),
+                          SizedBox(width: 8),
+                          Text(
+                            'Opens Google Form for feedback',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF92400E),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+            // ============ END FEEDBACK QR CODE ============
             
             if (lastConsultations.isNotEmpty) ...[
               Container(

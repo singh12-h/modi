@@ -12,6 +12,7 @@ import 'package:modi/sms_integration.dart';
 import 'package:modi/whatsapp_integration.dart';
 import 'package:modi/email_features.dart';
 import 'package:modi/patient_feedback_system.dart';
+import 'package:modi/feedback_analytics_page.dart';
 import 'package:modi/doctor_schedule_calendar.dart';
 import 'package:modi/patient_history_timeline.dart';
 import 'package:modi/database_helper.dart';
@@ -36,6 +37,8 @@ import 'package:modi/widgets/storage_alert_widget.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
 import 'package:modi/responsive_helper.dart';
+import 'package:modi/license_service.dart';
+import 'package:flutter/services.dart';
 
 class MenuItem {
   final IconData icon;
@@ -94,6 +97,10 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
   bool _showStorageAlert = false;
   bool _isConnected = true;
   late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
+  
+  // Hidden Admin Panel - 15 taps to activate
+  int _secretTapCount = 0;
+  DateTime? _lastTapTime;
   
   // Getter for doctor info
   Staff? get loggedInDoctor => widget.loggedInDoctor;
@@ -444,34 +451,154 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
     );
   }
 
+  // ==================== HIDDEN ADMIN PANEL ====================
+  
+  void _handleSecretTap() {
+    final now = DateTime.now();
+    
+    // Reset if more than 500ms between taps
+    if (_lastTapTime != null && now.difference(_lastTapTime!).inMilliseconds > 500) {
+      _secretTapCount = 0;
+    }
+    
+    _lastTapTime = now;
+    _secretTapCount++;
+    
+    // Show progress hint after 10 taps
+    if (_secretTapCount >= 10 && _secretTapCount < 15) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${15 - _secretTapCount} more taps...'),
+          duration: const Duration(milliseconds: 300),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+    
+    // Trigger admin panel after 15 taps
+    if (_secretTapCount >= 15) {
+      _secretTapCount = 0;
+      _showAdminPasswordDialog();
+    }
+  }
+
+  void _showAdminPasswordDialog() {
+    final passwordController = TextEditingController();
+    bool obscurePassword = true;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.admin_panel_settings, color: Colors.red),
+              ),
+              const SizedBox(width: 12),
+              const Text('🔐 Admin Access'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Enter admin password to access hidden features:',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: passwordController,
+                obscureText: obscurePassword,
+                decoration: InputDecoration(
+                  hintText: 'Password',
+                  prefixIcon: const Icon(Icons.lock),
+                  suffixIcon: IconButton(
+                    icon: Icon(obscurePassword ? Icons.visibility : Icons.visibility_off),
+                    onPressed: () => setDialogState(() => obscurePassword = !obscurePassword),
+                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (passwordController.text == 'kripashankar') {
+                  Navigator.pop(ctx);
+                  _showHiddenAdminPanel();
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('❌ Incorrect password'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Access', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showHiddenAdminPanel() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _HiddenAdminPage(onRefresh: _refreshPatients),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: _scaffoldKey,
-      drawer: Responsive.isMobile(context) ? _buildModernDrawer() : null,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const PatientRegistrationForm(),
-            ),
-          );
-          // Refresh patients list after registration
-          if (result == true) {
-            await _refreshPatients();
-          }
-        },
-        backgroundColor: const Color(0xFFA855F7), // Neon Purple
-        foregroundColor: Colors.white,
-        elevation: 8,
-        child: const Icon(Icons.person_add_rounded, size: 28),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      body: Responsive(
-        mobile: _buildMobileLayout(),
-        tablet: _buildDesktopLayout(),
-        desktop: _buildDesktopLayout(),
+    return GestureDetector(
+      onTap: _handleSecretTap,
+      behavior: HitTestBehavior.translucent,
+      child: Scaffold(
+        key: _scaffoldKey,
+        drawer: Responsive.isMobile(context) ? _buildModernDrawer() : null,
+        floatingActionButton: FloatingActionButton(
+          onPressed: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const PatientRegistrationForm(),
+              ),
+            );
+            // Refresh patients list after registration
+            if (result == true) {
+              await _refreshPatients();
+            }
+          },
+          backgroundColor: const Color(0xFFA855F7), // Neon Purple
+          foregroundColor: Colors.white,
+          elevation: 8,
+          child: const Icon(Icons.person_add_rounded, size: 28),
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        body: Responsive(
+          mobile: _buildMobileLayout(),
+          tablet: _buildDesktopLayout(),
+          desktop: _buildDesktopLayout(),
+        ),
       ),
     );
   }
@@ -636,7 +763,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
         page = const EmailFeatures();
         break;
       case 'PatientFeedbackSystem':
-        page = const PatientFeedbackSystem();
+        page = const FeedbackAnalyticsPage();
         break;
       case 'PatientHistoryTimeline':
         page = const PatientHistoryTimeline();
@@ -1753,143 +1880,118 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
     final completedCount = patients.where((p) => p.status == PatientStatus.completed).length;
     final isMobile = Responsive.isMobile(context);
 
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1e1e2e).withOpacity(0.4),
-        borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.15),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF22D3EE).withOpacity(0.3),
-            blurRadius: 25,
-            spreadRadius: 2,
+    return AnimatedBuilder(
+      animation: _tabController,
+      builder: (context, child) {
+        return Container(
+          margin: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 24),
+          height: isMobile ? 65 : 80,
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E2E).withOpacity(0.5),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-          child: TabBar(
-            controller: _tabController,
-            indicator: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF22D3EE), Color(0xFF0EA5E9)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF22D3EE).withOpacity(0.6),
-                  blurRadius: 25,
-                  spreadRadius: 3,
-                ),
-              ],
-            ),
-            indicatorPadding: EdgeInsets.all(isMobile ? 3 : 4),
-            labelColor: Colors.black,
-            unselectedLabelColor: Colors.black.withOpacity(0.6),
-            labelStyle: TextStyle(
-              fontSize: isMobile ? 12 : 15,
-              fontWeight: FontWeight.bold,
-            ),
-            unselectedLabelStyle: TextStyle(
-              fontSize: isMobile ? 11 : 14,
-              fontWeight: FontWeight.w500,
-            ),
-            isScrollable: false,
-            labelPadding: EdgeInsets.symmetric(horizontal: isMobile ? 4 : 8),
-            tabs: [
-              _buildEnhancedTab(
-                icon: Icons.schedule_rounded,
-                label: isMobile ? 'Wait' : 'Waiting',
-                count: waitingCount,
-                color: const Color(0xFFFFA726),
-                isMobile: isMobile,
-              ),
-              _buildEnhancedTab(
-                icon: Icons.healing_rounded,
-                label: isMobile ? 'Active' : 'In Progress',
-                count: inProgressCount,
-                color: const Color(0xFF22D3EE),
-                isMobile: isMobile,
-              ),
-              _buildEnhancedTab(
-                icon: Icons.check_circle_rounded,
-                label: isMobile ? 'Done' : 'Completed',
-                count: completedCount,
-                color: const Color(0xFF10B981),
-                isMobile: isMobile,
-              ),
+          child: Row(
+            children: [
+              _buildCustomTabItem(0, isMobile ? 'Wait' : 'Waiting', Icons.access_time_filled_rounded, waitingCount, const Color(0xFFF59E0B)),
+              _buildCustomTabItem(1, isMobile ? 'Active' : 'In Progress', Icons.medical_services_rounded, inProgressCount, const Color(0xFF06B6D4)),
+              _buildCustomTabItem(2, isMobile ? 'Done' : 'Completed', Icons.check_circle_rounded, completedCount, const Color(0xFF10B981)),
             ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCustomTabItem(int index, String label, IconData icon, int count, Color color) {
+    final isSelected = _tabController.index == index;
+    final isMobile = Responsive.isMobile(context);
+    
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _tabController.animateTo(index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+          margin: EdgeInsets.all(isMobile ? 4 : 6),
+          decoration: BoxDecoration(
+            color: isSelected ? color : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            gradient: isSelected 
+              ? LinearGradient(
+                  colors: [color, color.withOpacity(0.8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+            boxShadow: isSelected 
+              ? [
+                  BoxShadow(
+                    color: color.withOpacity(0.4),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+          ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 4 : 8, vertical: 4),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        icon,
+                        color: isSelected ? Colors.white : Colors.grey[400],
+                        size: isMobile ? 18 : 22,
+                      ),
+                      if (count > 0) ...[
+                        SizedBox(width: isMobile ? 4 : 6),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: isMobile ? 5 : 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isSelected ? Colors.white.withOpacity(0.25) : color.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '$count',
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : color,
+                              fontWeight: FontWeight.bold,
+                              fontSize: isMobile ? 10 : 11,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  SizedBox(height: isMobile ? 2 : 4),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.grey[400],
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                      fontSize: isMobile ? 11 : 13,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildEnhancedTab({
-    required IconData icon,
-    required String label,
-    required int count,
-    required Color color,
-    bool isMobile = false,
-  }) {
-    return Tab(
-      height: isMobile ? 56 : 70,
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: isMobile ? 16 : 22),
-                SizedBox(width: isMobile ? 3 : 6),
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isMobile ? 5 : 8, 
-                    vertical: isMobile ? 1 : 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
-                    border: Border.all(
-                      color: color.withOpacity(0.5),
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    count.toString(),
-                    style: TextStyle(
-                      fontSize: isMobile ? 10 : 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: isMobile ? 4 : 6),
-            Text(
-              label,
-              style: TextStyle(fontSize: isMobile ? 11 : 14),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildPatientGrid(String status) {
     final filteredPatients = patients.where((patient) {
@@ -1940,6 +2042,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
   Widget _buildPatientCard(Patient patient, String status) {
     final isNewPatient = DateTime.now().difference(patient.registrationTime).inMinutes < 30;
     final isMobile = Responsive.isMobile(context);
+    final statusColor = _getStatusColor(status);
     
     return MouseRegion(
       child: AnimatedContainer(
@@ -1947,13 +2050,13 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
         curve: Curves.easeInOut,
         decoration: BoxDecoration(
           color: const Color(0xFF1E1E2E).withOpacity(0.7),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isNewPatient 
                 ? const Color(0xFFA855F7).withOpacity(0.5)
-                : Colors.white.withOpacity(0.15),
-            width: isNewPatient ? 2 : 1.5,
+                : Colors.white.withOpacity(0.1),
+            width: isNewPatient ? 2 : 1,
           ),
-          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
               color: isNewPatient 
@@ -1986,38 +2089,93 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
                 },
                 child: Stack(
                   children: [
+                    // Status Strip Indicator
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: 6,
+                        decoration: BoxDecoration(
+                          color: statusColor,
+                          boxShadow: [
+                            BoxShadow(
+                              color: statusColor.withOpacity(0.6),
+                              blurRadius: 10,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    
+                    // Main Content
                     Padding(
-                      padding: EdgeInsets.all(isMobile ? 12 : 20),
+                      padding: EdgeInsets.fromLTRB(isMobile ? 20 : 28, isMobile ? 12 : 20, isMobile ? 12 : 20, isMobile ? 12 : 20),
                       child: isMobile ? _buildMobilePatientCardContent(patient, isNewPatient) : _buildDesktopPatientCardContent(patient, isNewPatient),
                     ),
+
+                    // Status Badge (compact on mobile)
+                    Positioned(
+                      top: isMobile ? 8 : 12,
+                      right: isMobile ? 8 : 12,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: isMobile ? 6 : 10, vertical: isMobile ? 3 : 4),
+                        decoration: BoxDecoration(
+                          color: statusColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
+                          border: Border.all(color: statusColor.withOpacity(0.5)),
+                        ),
+                        child: isMobile 
+                          ? Icon(_getStatusIcon(status), size: 14, color: statusColor)
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(_getStatusIcon(status), size: 12, color: statusColor),
+                                const SizedBox(width: 4),
+                                Text(
+                                  status.toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: statusColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                      ),
+                    ),
+
                     if (patient.isAppointment)
                       Positioned(
-                        top: 12,
-                        right: 12,
+                        top: isMobile ? 35 : 45, // Positioned below status badge
+                        right: isMobile ? 8 : 12,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: EdgeInsets.symmetric(horizontal: isMobile ? 5 : 8, vertical: isMobile ? 2 : 4),
                           decoration: BoxDecoration(
                             color: Colors.orange,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(6),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.orange.withOpacity(0.4),
-                                blurRadius: 8,
+                                blurRadius: 6,
                                 offset: const Offset(0, 2),
                               ),
                             ],
                           ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.calendar_today, size: 10, color: Colors.white),
-                              SizedBox(width: 4),
-                              Text(
-                                'APPT',
-                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                          child: isMobile
+                            ? const Icon(Icons.calendar_today, size: 10, color: Colors.white)
+                            : const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.calendar_today, size: 10, color: Colors.white),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'APPT',
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
                         ),
                       ),
                   ],
@@ -2468,11 +2626,11 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
   Color _getStatusColor(String status) {
     switch (status) {
       case 'Waiting':
-        return const Color(0xFFEC4899); // Hot Pink - more vibrant for waiting
+        return const Color(0xFFF59E0B); // Amber - consistent with tabs
       case 'In Progress':
-        return const Color(0xFF06B6D4); // Bright Cyan - more electric
+        return const Color(0xFF06B6D4); // Bright Cyan
       case 'Completed':
-        return const Color(0xFF10B981); // Emerald Green - vibrant success
+        return const Color(0xFF10B981); // Emerald Green
       default:
         return Colors.grey;
     }
@@ -2481,7 +2639,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
   LinearGradient _getStatusGradient(String status) {
     switch (status) {
       case 'Waiting':
-        return const LinearGradient(colors: [Color(0xFFA855F7), Color(0xFFEC4899)]); // Purple to Pink
+        return const LinearGradient(colors: [Color(0xFFFBBF24), Color(0xFFF59E0B)]); // Amber Light to Dark
       case 'In Progress':
         return const LinearGradient(colors: [Color(0xFF22D3EE), Color(0xFF0EA5E9)]); // Cyan to Blue
       case 'Completed':
@@ -3209,6 +3367,427 @@ class _SearchOverlayState extends State<_SearchOverlay> {
             SnackBar(content: Text('$medicine selected')),
           );
         },
+      ),
+    );
+  }
+}
+
+// ==================== HIDDEN ADMIN PAGE ====================
+
+class _HiddenAdminPage extends StatefulWidget {
+  final VoidCallback onRefresh;
+  
+  const _HiddenAdminPage({required this.onRefresh});
+
+  @override
+  State<_HiddenAdminPage> createState() => _HiddenAdminPageState();
+}
+
+class _HiddenAdminPageState extends State<_HiddenAdminPage> {
+  Map<String, int> _stats = {};
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    final stats = await DatabaseHelper.instance.getBackupStats();
+    setState(() {
+      _stats = stats;
+      _isLoading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('🔐 Hidden Admin Panel'),
+        backgroundColor: Colors.red.shade700,
+        foregroundColor: Colors.white,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.red.shade50, Colors.white],
+          ),
+        ),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Warning Banner
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red.shade300),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.warning_amber, color: Colors.red, size: 30),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              '⚠️ WARNING: This is a hidden admin panel. Actions here cannot be undone!',
+                              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // Database Stats
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10)],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('📊 Database Statistics', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 16),
+                          _buildStatRow('👥 Patients', _stats['patients'] ?? 0),
+                          _buildStatRow('📅 Appointments', _stats['appointments'] ?? 0),
+                          _buildStatRow('👨‍⚕️ Staff', _stats['staff'] ?? 0),
+                          _buildStatRow('💊 Prescriptions', _stats['prescriptions'] ?? 0),
+                          _buildStatRow('💬 Consultations', _stats['consultations'] ?? 0),
+                          _buildStatRow('💰 Payments', _stats['payments'] ?? 0),
+                          _buildStatRow('⭐ Feedback', _stats['feedback'] ?? 0),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // Backup Section
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.green.shade300),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('💾 Backup', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _createBackup,
+                              icon: const Icon(Icons.cloud_upload),
+                              label: const Text('Create Full Backup'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // License Key Generator Section
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.purple.shade300),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('🔑 License Key Generator', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.purple)),
+                          const SizedBox(height: 8),
+                          const Text('Generate keys for customers', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () => _generateLicenseKey(LicenseType.demo),
+                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
+                                  child: const Text('Demo (7d)'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () => _generateLicenseKey(LicenseType.trial),
+                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
+                                  child: const Text('Trial (30d)'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () => _generateLicenseKey(LicenseType.lifetime),
+                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                                  child: const Text('Lifetime'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // Delete Data Section
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.red.shade300),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('🗑️ Delete Data', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
+                          const SizedBox(height: 12),
+                          _buildDeleteButton('Delete Old Patients (30+ days)', Icons.person_remove, () => _deleteOldData('patients')),
+                          const SizedBox(height: 8),
+                          _buildDeleteButton('Delete Old Appointments', Icons.event_busy, () => _deleteOldData('appointments')),
+                          const SizedBox(height: 8),
+                          _buildDeleteButton('Clear All Feedback', Icons.feedback, () => _clearTable('feedback')),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _deleteAllData,
+                              icon: const Icon(Icons.delete_forever),
+                              label: const Text('⚠️ DELETE ALL DATA'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red.shade700,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildStatRow(String label, int count) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 14)),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade100,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text('$count', style: const TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeleteButton(String label, IconData icon, VoidCallback onTap) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        label: Text(label),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.red,
+          side: const BorderSide(color: Colors.red),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+      ),
+    );
+  }
+
+  void _generateLicenseKey(LicenseType type) {
+    final key = LicenseService.generateKey(type);
+    final typeLabel = type == LicenseType.demo ? 'Demo (7 days)' 
+                    : type == LicenseType.trial ? 'Trial (30 days)' 
+                    : 'Lifetime';
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.key, color: Colors.purple),
+            const SizedBox(width: 10),
+            Text('$typeLabel Key Generated'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.purple.shade200),
+              ),
+              child: SelectableText(
+                key,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1,
+                  fontFamily: 'monospace',
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: key));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('✅ Key copied to clipboard!'), backgroundColor: Colors.green),
+                  );
+                },
+                icon: const Icon(Icons.copy),
+                label: const Text('Copy Key'),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.purple, foregroundColor: Colors.white),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Share this key with your customer via WhatsApp/SMS',
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _createBackup() async {
+    try {
+      showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
+      final backup = await DatabaseHelper.instance.exportBackupData();
+      Navigator.pop(context);
+      
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('✅ Backup Created'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Total: ${(backup.length / 1024).toStringAsFixed(1)} KB'),
+              const SizedBox(height: 12),
+              Container(
+                height: 150,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
+                child: SingleChildScrollView(child: SelectableText(backup, style: const TextStyle(fontSize: 8))),
+              ),
+            ],
+          ),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close'))],
+        ),
+      );
+    } catch (e) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    }
+  }
+
+  Future<void> _deleteOldData(String type) async {
+    final confirm = await _showConfirmDialog('Delete old $type?', 'This will delete $type older than 30 days.');
+    if (confirm != true) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Deleting old $type...'), backgroundColor: Colors.orange));
+    // TODO: Implement actual deletion based on type
+    await Future.delayed(const Duration(seconds: 1));
+    await _loadStats();
+    widget.onRefresh();
+  }
+
+  Future<void> _clearTable(String table) async {
+    final confirm = await _showConfirmDialog('Clear $table?', 'All $table data will be permanently deleted.');
+    if (confirm != true) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Clearing $table...'), backgroundColor: Colors.orange));
+    await Future.delayed(const Duration(seconds: 1));
+    await _loadStats();
+  }
+
+  Future<void> _deleteAllData() async {
+    final confirm = await _showConfirmDialog(
+      '⚠️ DELETE ALL DATA?',
+      'This will PERMANENTLY delete ALL patients, appointments, payments, and feedback. This action CANNOT be undone!\n\nType "DELETE" to confirm:',
+      requireConfirmText: true,
+    );
+    if (confirm != true) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('⚠️ Feature disabled for safety'), backgroundColor: Colors.orange));
+  }
+
+  Future<bool?> _showConfirmDialog(String title, String content, {bool requireConfirmText = false}) {
+    final controller = TextEditingController();
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(content),
+            if (requireConfirmText) ...[
+              const SizedBox(height: 16),
+              TextField(controller: controller, decoration: const InputDecoration(hintText: 'Type DELETE', border: OutlineInputBorder())),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              if (requireConfirmText && controller.text != 'DELETE') {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please type DELETE to confirm'), backgroundColor: Colors.red));
+                return;
+              }
+              Navigator.pop(ctx, true);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Confirm', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }

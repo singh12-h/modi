@@ -1,0 +1,7 @@
+﻿Connected devices:
+Windows (desktop) ΓÇó windows ΓÇó windows-x64    ΓÇó Microsoft Windows [Version 10.0.19045.6466]
+Chrome (web)      ΓÇó chrome  ΓÇó web-javascript ΓÇó Google Chrome 143.0.7499.147
+Edge (web)        ΓÇó edge    ΓÇó web-javascript ΓÇó Microsoft Edge 143.0.3650.96
+[1]: Windows (windows)
+[2]: Chrome (chrome)
+[3]: Edge (edge)

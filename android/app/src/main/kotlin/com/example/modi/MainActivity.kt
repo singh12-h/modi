@@ -1,12 +1,7 @@
 package com.example.modi
 
-import io.flutter.embedding.android.FlutterActivity
-import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.plugins.GeneratedPluginRegistrant
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity() {
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        // Fast plugin registration
-        GeneratedPluginRegistrant.registerWith(flutterEngine)
-    }
+class MainActivity : FlutterFragmentActivity() {
+    // FlutterFragmentActivity required for local_auth biometric plugin
 }

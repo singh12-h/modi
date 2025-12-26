@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'login_signup_choice.dart';
+import 'online_license_service.dart';
 
 class WelcomePage extends StatefulWidget {
   const WelcomePage({super.key});
@@ -13,6 +14,11 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
   late AnimationController _floatController;
   late AnimationController _pulseController;
   late AnimationController _rotateController;
+  
+  // License status
+  String _licenseType = '';
+  int _daysRemaining = 0;
+  bool _showTrialBanner = false;
   
   @override
   void initState() {
@@ -32,6 +38,25 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
       duration: const Duration(seconds: 30),
       vsync: this,
     )..repeat();
+    
+    // Check license status for trial banner
+    _checkLicenseStatus();
+  }
+  
+  Future<void> _checkLicenseStatus() async {
+    try {
+      final licenseInfo = await OnlineLicenseService.getCurrentLicenseInfo();
+      if (licenseInfo != null && mounted) {
+        setState(() {
+          _licenseType = licenseInfo['type'] ?? '';
+          _daysRemaining = licenseInfo['daysRemaining'] ?? 0;
+          // Show banner for Demo and Trial licenses
+          _showTrialBanner = _licenseType == 'DEMO' || _licenseType == 'TRIAL';
+        });
+      }
+    } catch (e) {
+      // Ignore errors
+    }
   }
 
   @override
@@ -105,6 +130,83 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                 },
               );
             }),
+            
+            // Trial Banner at top
+            if (_showTrialBanner)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  child: Container(
+                    margin: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: _licenseType == 'DEMO'
+                            ? [const Color(0xFFFF9800), const Color(0xFFFF5722)]
+                            : [const Color(0xFF2196F3), const Color(0xFF1976D2)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (_licenseType == 'DEMO' ? Colors.orange : Colors.blue).withOpacity(0.4),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _licenseType == 'DEMO' ? Icons.timer : Icons.hourglass_empty,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _licenseType == 'DEMO' ? '🎁 Free Demo' : '⏰ Trial License',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                '$_daysRemaining days remaining',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            'Upgrade',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             
             // Main content
             SafeArea(

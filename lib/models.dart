@@ -836,3 +836,67 @@ class PaymentTransaction {
     );
   }
 }
+
+// Patient Feedback model - For storing patient reviews and ratings
+class PatientFeedback {
+  final String id;
+  final String? patientId;
+  final String patientName;
+  final int overallRating; // 1-5
+  final int doctorRating; // 1-5
+  final int staffRating; // 1-5
+  final int cleanlinessRating; // 1-5
+  final int waitingTimeRating; // 1-5
+  final String? comments;
+  final String? sentiment; // 'positive', 'neutral', 'negative' - AI analyzed
+  final DateTime createdAt;
+
+  PatientFeedback({
+    required this.id,
+    this.patientId,
+    required this.patientName,
+    required this.overallRating,
+    required this.doctorRating,
+    required this.staffRating,
+    required this.cleanlinessRating,
+    required this.waitingTimeRating,
+    this.comments,
+    this.sentiment,
+    DateTime? createdAt,
+  }) : createdAt = createdAt ?? DateTime.now();
+
+  // Calculate average rating
+  double get averageRating => (overallRating + doctorRating + staffRating + cleanlinessRating + waitingTimeRating) / 5.0;
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'patient_id': patientId,
+      'patient_name': patientName,
+      'overall_rating': overallRating,
+      'doctor_rating': doctorRating,
+      'staff_rating': staffRating,
+      'cleanliness_rating': cleanlinessRating,
+      'waiting_time_rating': waitingTimeRating,
+      'comments': comments,
+      'sentiment': sentiment,
+      'created_at': createdAt.toIso8601String(),
+    };
+  }
+
+  factory PatientFeedback.fromMap(Map<String, dynamic> map) {
+    return PatientFeedback(
+      id: map['id'],
+      patientId: map['patient_id'],
+      patientName: map['patient_name'] ?? 'Anonymous',
+      overallRating: map['overall_rating'] ?? 0,
+      doctorRating: map['doctor_rating'] ?? 0,
+      staffRating: map['staff_rating'] ?? 0,
+      cleanlinessRating: map['cleanliness_rating'] ?? 0,
+      waitingTimeRating: map['waiting_time_rating'] ?? 0,
+      comments: map['comments'],
+      sentiment: map['sentiment'],
+      createdAt: DateTime.parse(map['created_at']),
+    );
+  }
+}

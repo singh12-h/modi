@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔐 MODI License Admin</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔐</text></svg>">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Login Screen */
+        .login-screen {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 90vh;
+        }
+
+        .login-card {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .login-card h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .login-card p {
+            color: #666;
+            margin-bottom: 25px;
+        }
+
+        .login-card input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .login-card input:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .login-card button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .login-card button:hover {
+            opacity: 0.9;
+        }
+
+        .login-error {
+            color: #dc3545;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+            padding: 10px;
+        }
+
+        .header h1 {
+            font-size: 1.8em;
+            margin-bottom: 5px;
+        }
+
+        .header .status {
+            display: inline-block;
+            padding: 6px 15px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+
+        .header .status.connected {
+            background: #27ae60;
+        }
+
+        .logout-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            padding: 8px 15px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .generate-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .generate-btn {
+            padding: 20px 10px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .generate-btn.demo {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+
+        .generate-btn.trial {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+        }
+
+        .generate-btn.lifetime {
+            background: linear-gradient(135deg, #27ae60, #229954);
+        }
+
+        .customer-input {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .customer-input input {
+            flex: 1;
+            min-width: 150px;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .customer-input input:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .key-display {
+            background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+            border: 2px solid #27ae60;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .key-display .key {
+            font-size: 18px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            color: #1b5e20;
+            letter-spacing: 1px;
+            word-break: break-all;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 2px dashed #27ae60;
+        }
+
+        .key-display .copy-btn {
+            padding: 12px 30px;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .licenses-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .licenses-table th,
+        .licenses-table td {
+            padding: 10px 6px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .licenses-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        .licenses-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge,
+        .type-badge {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-badge.unused {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge.used {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .status-badge.revoked {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .type-badge.demo {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .type-badge.trial {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .type-badge.lifetime {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px 10px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-card .number {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .stat-card .label {
+            font-size: 11px;
+            opacity: 0.9;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .filter-section {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .filter-section select,
+        .filter-section input {
+            padding: 8px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .filter-section button {
+            padding: 8px 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .action-btn {
+            padding: 5px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            margin: 1px;
+        }
+
+        .action-btn.copy {
+            background: #667eea;
+            color: white;
+        }
+
+        .action-btn.delete {
+            background: #6c757d;
+            color: white;
+        }
+
+        .action-btn.revoke {
+            background: #dc3545;
+            color: white;
+        }
+
+        .key-details {
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            background: #f5f5f5;
+            padding: 4px 6px;
+            border-radius: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .generate-buttons {
+                grid-template-columns: 1fr;
+            }
+
+            .stats {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .customer-input {
+                flex-direction: column;
+            }
+
+            .key-display .key {
+                font-size: 12px;
+            }
+
+            .logout-btn {
+                position: static;
+                margin-bottom: 10px;
+                display: block;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Login Screen -->
+    <div class="login-screen" id="loginScreen">
+        <div class="login-card">
+            <h1>🔐 MODI Admin</h1>
+            <p>Enter admin password to continue</p>
+            <input type="password" id="passwordInput" placeholder="Password"
+                onkeypress="if(event.key==='Enter')login()">
+            <button onclick="login()">🔓 LOGIN</button>
+            <p class="login-error" id="loginError">❌ Wrong password!</p>
+        </div>
+    </div>
+
+    <!-- Main Panel -->
+    <div class="container hidden" id="mainContainer">
+        <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+
+        <div class="header">
+            <h1>🔐 MODI License Admin</h1>
+            <div class="status" id="connectionStatus">🔄 Connecting...</div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats">
+            <div class="stat-card">
+                <div class="number" id="totalKeys">0</div>
+                <div class="label">Total</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="unusedKeys">0</div>
+                <div class="label">Unused</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="activeKeys">0</div>
+                <div class="label">Active</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="lifetimeKeys">0</div>
+                <div class="label">Lifetime</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="revokedKeys">0</div>
+                <div class="label">Revoked</div>
+            </div>
+        </div>
+
+        <!-- Generate Key -->
+        <div class="card">
+            <h2>🔑 Generate Key</h2>
+            <div class="customer-input">
+                <input type="text" id="customerName" placeholder="👤 Name (optional)">
+                <input type="text" id="customerPhone" placeholder="📱 Phone (optional)">
+            </div>
+            <div class="generate-buttons">
+                <button class="generate-btn demo" onclick="generateKey('demo')">📅 DEMO<br><small>7
+                        Days</small></button>
+                <button class="generate-btn trial" onclick="generateKey('trial')">⏳ TRIAL<br><small>30
+                        Days</small></button>
+                <button class="generate-btn lifetime" onclick="generateKey('lifetime')">♾️
+                    LIFETIME<br><small>Forever</small></button>
+            </div>
+            <div class="key-display hidden" id="keyDisplay">
+                <div class="key" id="generatedKey">MODI-XXXX-XXXX-XXXX-L-XX</div>
+                <button class="copy-btn" onclick="copyKey()">📋 COPY</button>
+            </div>
+        </div>
+
+        <!-- License List -->
+        <div class="card">
+            <h2>📋 All Licenses</h2>
+            <div class="filter-section">
+                <select id="filterType">
+                    <option value="all">All Types</option>
+                    <option value="demo">Demo</option>
+                    <option value="trial">Trial</option>
+                    <option value="lifetime">Lifetime</option>
+                </select>
+                <select id="filterStatus">
+                    <option value="all">All Status</option>
+                    <option value="unused">Unused</option>
+                    <option value="used">Active</option>
+                    <option value="revoked">Revoked</option>
+                </select>
+                <input type="text" id="searchInput" placeholder="🔍 Search...">
+                <button onclick="loadLicenses()">🔄</button>
+            </div>
+            <div style="overflow-x: auto; max-height: 400px;">
+                <table class="licenses-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Key</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Customer</th>
+                            <th>Phone</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="licensesBody">
+                        <tr>
+                            <td colspan="8" style="text-align: center;">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <script>
+        // ========== CONFIG ==========
+        const ADMIN_PASSWORD = 'kripashankar2024'; // Change this!
+        const firebaseConfig = {
+            apiKey: "AIzaSyBXgDIO-fOGnjG6Kqz9Vnn3_iMWSe0eZgo",
+            authDomain: "ks-console.firebaseapp.com",
+            projectId: "ks-console",
+            storageBucket: "ks-console.firebasestorage.app",
+            messagingSenderId: "614272969820",
+            appId: "1:614272969820:web:b7516b04899a6f29bc8a99"
+        };
+        // ============================
+
+        let db = null;
+        const SECRET_SALT = 'KSMODI2024ONLINE';
+        const VALID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+        // Check session
+        window.onload = function () {
+            if (sessionStorage.getItem('modiAdminAuth') === 'true') {
+                showMainPanel();
+            }
+        };
+
+        function login() {
+            const pwd = document.getElementById('passwordInput').value;
+            if (pwd === ADMIN_PASSWORD) {
+                sessionStorage.setItem('modiAdminAuth', 'true');
+                showMainPanel();
+            } else {
+                document.getElementById('loginError').style.display = 'block';
+                document.getElementById('passwordInput').value = '';
+            }
+        }
+
+        function logout() {
+            sessionStorage.removeItem('modiAdminAuth');
+            location.reload();
+        }
+
+        async function showMainPanel() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainContainer').classList.remove('hidden');
+
+            try {
+                // Initialize Firebase only once
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                    console.log('Firebase initialized');
+                }
+
+                // Get Firestore instance
+                db = firebase.firestore();
+                console.log('Firestore instance created');
+
+                // Enable persistence for offline support (optional but helpful)
+                try {
+                    await db.enablePersistence({ synchronizeTabs: true });
+                    console.log('Persistence enabled');
+                } catch (err) {
+                    if (err.code === 'failed-precondition') {
+                        console.log('Persistence unavailable (multiple tabs)');
+                    } else if (err.code === 'unimplemented') {
+                        console.log('Persistence not available in this browser');
+                    }
+                }
+
+                // Test connection with a simple read
+                const testSnapshot = await db.collection('licenses').limit(1).get();
+                console.log('Connection test passed, found:', testSnapshot.size, 'docs');
+
+                document.getElementById('connectionStatus').textContent = '✅ Connected (Live)';
+                document.getElementById('connectionStatus').classList.add('connected');
+                startRealtimeListener(); // Use real-time listener instead of one-time load
+            } catch (e) {
+                console.error('Firebase Error:', e);
+                document.getElementById('connectionStatus').textContent = '❌ ' + e.message;
+            }
+        }
+
+        function calculateChecksum(part1, part2, part3, typeChar) {
+            const data = SECRET_SALT + part1 + part2 + part3 + typeChar + SECRET_SALT;
+            let hash = 0;
+            for (let i = 0; i < data.length; i++) {
+                hash = ((hash << 5) - hash) + data.charCodeAt(i);
+                hash = hash & hash;
+            }
+            hash = Math.abs(hash).toString(16).toUpperCase().padStart(20, '0');
+            return VALID_CHARS[parseInt(hash.substring(5, 7), 16) % VALID_CHARS.length] +
+                VALID_CHARS[parseInt(hash.substring(10, 12), 16) % VALID_CHARS.length] +
+                VALID_CHARS[parseInt(hash.substring(15, 17), 16) % VALID_CHARS.length];
+        }
+
+        function generateRandomString(len) {
+            return Array.from({ length: len }, () => VALID_CHARS[Math.floor(Math.random() * VALID_CHARS.length)]).join('');
+        }
+
+        async function generateKey(type) {
+            if (!db) return alert('Not connected!');
+
+            const name = document.getElementById('customerName').value.trim();
+            const phone = document.getElementById('customerPhone').value.trim();
+            const part1 = generateRandomString(4), part2Base = generateRandomString(3), part3 = generateRandomString(4);
+            const typeSuffix = type === 'demo' ? 'D' : type === 'trial' ? 'T' : 'L';
+            const cs = calculateChecksum(part1, part2Base, part3, typeSuffix);
+            const key = `MODI-${part1}-${part2Base[0]}${cs[0]}${part2Base.substring(1)}-${part3}-${typeSuffix}-${cs.substring(1)}`;
+
+            const expiry = type === 'demo' ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() :
+                type === 'trial' ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null;
+
+            try {
+                await db.collection('licenses').doc(key).set({
+                    key, type: typeSuffix, typeName: type, status: 'unused',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    expiryDate: expiry, customerName: name, customerPhone: phone,
+                    activatedBy: null, activatedAt: null
+                });
+                document.getElementById('generatedKey').textContent = key;
+                document.getElementById('keyDisplay').classList.remove('hidden');
+                document.getElementById('customerName').value = '';
+                document.getElementById('customerPhone').value = '';
+                loadLicenses();
+            } catch (e) { alert('Error: ' + e.message); }
+        }
+
+        function copyKey() {
+            const key = document.getElementById('generatedKey').textContent;
+            navigator.clipboard.writeText(key);
+            alert('✅ Copied!\n\n' + key);
+        }
+
+        let unsubscribe = null; // Store listener to unsubscribe later
+
+        function startRealtimeListener() {
+            if (!db) return;
+
+            // Unsubscribe from previous listener if exists
+            if (unsubscribe) unsubscribe();
+
+            // Start real-time listener
+            unsubscribe = db.collection('licenses')
+                .orderBy('createdAt', 'desc')
+                .limit(100)
+                .onSnapshot((snapshot) => {
+                    console.log('📡 Real-time update received:', snapshot.size, 'docs');
+                    renderLicenses(snapshot);
+                }, (error) => {
+                    console.error('Listener error:', error);
+                });
+        }
+
+        function renderLicenses(snapshot) {
+            const filterType = document.getElementById('filterType').value;
+            const filterStatus = document.getElementById('filterStatus').value;
+            const search = document.getElementById('searchInput').value.toLowerCase();
+
+            let total = 0, active = 0, unused = 0, lifetime = 0, revoked = 0, html = '', count = 0;
+
+            snapshot.forEach(doc => {
+                const d = doc.data();
+                total++;
+                if (d.status === 'unused') unused++;
+                if (d.status === 'used') active++;
+                if (d.status === 'revoked') revoked++;
+                if (d.type === 'L') lifetime++;
+
+                if (filterType !== 'all' && d.typeName !== filterType) return;
+                if (filterStatus !== 'all' && d.status !== filterStatus) return;
+                if (search && !d.key.toLowerCase().includes(search) &&
+                    !(d.customerName || '').toLowerCase().includes(search)) return;
+
+                count++;
+                const typeLabel = d.type === 'D' ? 'Demo' : d.type === 'T' ? 'Trial' : 'Lifetime';
+                const created = d.createdAt ? new Date(d.createdAt.toDate()).toLocaleDateString('en-IN') : '-';
+
+                html += `<tr>
+                    <td>${count}</td>
+                    <td><span class="key-details">${d.key}</span></td>
+                    <td><span class="type-badge ${d.typeName}">${typeLabel}</span></td>
+                    <td><span class="status-badge ${d.status}">${d.status}</span></td>
+                    <td>${d.customerName || '-'}</td>
+                    <td>${d.customerPhone || '-'}</td>
+                    <td>${created}</td>
+                    <td>
+                        <button class="action-btn copy" onclick="navigator.clipboard.writeText('${d.key}');alert('Copied!')">📋</button>
+                        ${d.status === 'unused' ? `<button class="action-btn delete" onclick="deleteKey('${d.key}')">🗑️</button>` : ''}
+                        ${d.status === 'used' ? `<button class="action-btn revoke" onclick="revokeKey('${d.key}')">❌</button>` : ''}
+                    </td>
+                </tr>`;
+            });
+
+            document.getElementById('licensesBody').innerHTML = html || '<tr><td colspan="8" style="text-align:center">No data</td></tr>';
+            document.getElementById('totalKeys').textContent = total;
+            document.getElementById('activeKeys').textContent = active;
+            document.getElementById('unusedKeys').textContent = unused;
+            document.getElementById('lifetimeKeys').textContent = lifetime;
+            document.getElementById('revokedKeys').textContent = revoked;
+        }
+
+        async function loadLicenses() {
+            if (!db) return;
+            const filterType = document.getElementById('filterType').value;
+            const filterStatus = document.getElementById('filterStatus').value;
+            const search = document.getElementById('searchInput').value.toLowerCase();
+
+            try {
+                const snapshot = await db.collection('licenses').orderBy('createdAt', 'desc').limit(100).get();
+                renderLicenses(snapshot);
+            } catch (e) { console.error(e); }
+        }
+
+        async function deleteKey(key) {
+            if (!confirm('Delete this key?\n' + key)) return;
+            await db.collection('licenses').doc(key).delete();
+            loadLicenses();
+        }
+
+        async function revokeKey(key) {
+            if (!confirm('Revoke? Customer app will LOCK!\n' + key)) return;
+            await db.collection('licenses').doc(key).update({
+                status: 'revoked', revokedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            loadLicenses();
+        }
+
+        document.getElementById('filterType').addEventListener('change', loadLicenses);
+        document.getElementById('filterStatus').addEventListener('change', loadLicenses);
+        document.getElementById('searchInput').addEventListener('input', loadLicenses);
+    </script>
+</body>
+
+</html>

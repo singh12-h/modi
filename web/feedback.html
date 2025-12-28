@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Feedback - Medicare Clinic</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #ec4899;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: var(--card);
+            border-radius: 24px;
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            padding: 32px 24px;
+            text-align: center;
+            color: white;
+        }
+
+        .logo {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 32px 24px;
+        }
+
+        .patient-info {
+            background: #f1f5f9;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .welcome-text {
+            font-size: 14px;
+            color: var(--text-sub);
+            margin-bottom: 4px;
+        }
+
+        .patient-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-main);
+        }
+
+        /* Star Rating */
+        .rating-container {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .star-radio {
+            display: none;
+        }
+
+        .star-label {
+            font-size: 32px;
+            color: #cbd5e1;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .star-label:hover,
+        .star-radio:checked~.star-label,
+        .active-star {
+            color: #fbbf24;
+            transform: scale(1.1);
+        }
+
+        /* Specific CSS logic for star rating hover/select */
+        .rating-group:hover .star-label {
+            color: #fbbf24;
+        }
+
+        .rating-group .star-label:hover~.star-label {
+            color: #cbd5e1;
+        }
+
+        textarea {
+            width: 100%;
+            height: 120px;
+            padding: 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 14px;
+            resize: none;
+            transition: all 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .submit-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 24px;
+            font-size: 12px;
+            color: var(--text-sub);
+        }
+
+        /* Success & Loading States */
+        .hidden {
+            display: none;
+        }
+
+        .success-message {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .success-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            color: #22c55e;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container" id="mainContainer">
+        <div class="header">
+            <div class="logo">🏥</div>
+            <h1 class="title">Patient Feedback</h1>
+            <p class="subtitle">Your opinion matters to us</p>
+        </div>
+
+        <div class="content">
+            <div class="patient-info" id="patientInfo">
+                <p class="welcome-text">Welcome back,</p>
+                <h2 class="patient-name" id="displayPatientName">Valued Patient</h2>
+            </div>
+
+            <form id="feedbackForm">
+                <div class="form-group">
+                    <label class="label">Overall Experience</label>
+                    <div class="rating-container rating-group">
+                        <!-- Reversed order for CSS sibling selector trick -->
+                        <input type="radio" class="star-radio" name="rating" value="5" id="star5"><label
+                            class="star-label" for="star5">★</label>
+                        <input type="radio" class="star-radio" name="rating" value="4" id="star4"><label
+                            class="star-label" for="star4">★</label>
+                        <input type="radio" class="star-radio" name="rating" value="3" id="star3"><label
+                            class="star-label" for="star3">★</label>
+                        <input type="radio" class="star-radio" name="rating" value="2" id="star2"><label
+                            class="star-label" for="star2">★</label>
+                        <input type="radio" class="star-radio" name="rating" value="1" id="star1"><label
+                            class="star-label" for="star1">★</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="label">Comments (Optional)</label>
+                    <textarea id="comments" placeholder="Tell us about your visit..."></textarea>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submitBtn">Submit Feedback</button>
+            </form>
+
+            <div class="footer">
+                © Medicare Clinic • Powered by MODI
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Screen -->
+    <div class="container hidden" id="successScreen">
+        <div class="success-message">
+            <div class="success-icon">✅</div>
+            <h2 class="title" style="color:var(--text-main); margin-bottom: 8px;">Thank You!</h2>
+            <p style="color:var(--text-sub);">Your feedback has been submitted successfully.</p>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // Firebase Configuration (from firebase_config.dart)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBXgDIO-fOGnjG6Kqz9Vnn3_iMWSe0eZgo",
+            authDomain: "ks-console.firebaseapp.com",
+            projectId: "ks-console",
+            storageBucket: "ks-console.firebasestorage.app",
+            messagingSenderId: "614272969820",
+            appId: "1:614272969820:web:b7516b04899a6f29bc8a99",
+            measurementId: "G-HVBHX1S7M1"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // URL Params Parsing
+        const urlParams = new URLSearchParams(window.location.search);
+        const patientId = urlParams.get('patient_id') || 'anonymous';
+        const patientName = urlParams.get('name') || 'Guest';
+        const clinicId = urlParams.get('clinic_id');
+
+        // Initial Setup
+        document.getElementById('displayPatientName').textContent = patientName;
+
+        // Form Submission
+        document.getElementById('feedbackForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById('submitBtn');
+            const ratingInput = document.querySelector('input[name="rating"]:checked');
+            const comments = document.getElementById('comments').value;
+
+            if (!ratingInput) {
+                alert('Please select a rating');
+                return;
+            }
+
+            submitBtn.textContent = 'Submitting...';
+            submitBtn.disabled = true;
+
+            try {
+                // Save to Firestore
+                await addDoc(collection(db, "patient_feedback"), {
+                    patient_id: patientId,
+                    patient_name: patientName,
+                    rating: parseInt(ratingInput.value),
+                    comments: comments,
+                    created_at: serverTimestamp(),
+                    source: 'web_qr',
+                    device_info: navigator.userAgent
+                });
+
+                // Show Success
+                document.getElementById('mainContainer').classList.add('hidden');
+                document.getElementById('successScreen').classList.remove('hidden');
+
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                alert("Error submitting feedback. Please try again.");
+                submitBtn.textContent = 'Submit Feedback';
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -61,38 +61,19 @@ class _PatientQrCodeState extends State<PatientQrCode> {
     }
   }
 
-  // Generate QR data as URL with base64 encoded patient data
-  // When scanned, opens browser with professional PDF-style report
+  // Generate URL for Web Feedback Form
   String _generateQrData(Patient p) {
-    final Map<String, dynamic> data = {
+    // Hosting: GitHub Pages (singh12-h.github.io/modi-admin)
+    final baseUrl = 'https://singh12-h.github.io/modi-admin/feedback.html';
+    
+    // Encode parameters safely
+    final params = Uri(queryParameters: {
       'patient_id': p.id,
-      'patient_name': p.name,
-      'token': p.token,
-      'age': p.age,
-      'gender': p.gender,
-      'mobile': p.mobile,
-      'blood_group': p.bloodGroup ?? 'N/A',
-      'registration_date': DateFormat('yyyy-MM-dd').format(p.registrationTime),
-      'allergies': p.allergies ?? 'None',
-      'medical_history': p.medicalHistory ?? 'None',
-      'emergency_contact': p.emergencyContact ?? 'N/A',
-      'clinic_name': 'Medicare Clinic',
-      'doctor_name': 'Dr. Modi',
-      'clinic_address': 'Healthcare Center, City',
-      'clinic_phone': '+91-XXXXXXXXXX',
-      'qr_generated_date': DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now()),
-      'qr_version': '1.0',
-    };
-    
-    // Encode JSON to base64
-    final jsonString = jsonEncode(data);
-    final base64Data = base64Encode(utf8.encode(jsonString));
-    
-    // Return URL format
-    // LOCAL TESTING: Use your current running URL (check browser address bar)
-    // Example: http://localhost:55555/#/patient-report?data=BASE64
-    // AFTER DEPLOY: Change to your deployed URL like https://your-app.web.app/#/patient-report?data=BASE64
-    return 'http://localhost:8080/#/patient-report?data=$base64Data';
+      'name': p.name, // Will be displayed on form
+      'clinic_id': 'medicare_clinic_01', 
+    }).query;
+
+    return '$baseUrl?$params';
   }
   
   // Get only JSON data (for internal use)

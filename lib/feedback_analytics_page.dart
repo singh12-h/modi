@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'database_helper.dart';
 import 'models.dart';
 import 'feedback_ai_service.dart';
@@ -26,19 +27,64 @@ class _FeedbackAnalyticsPageState extends State<FeedbackAnalyticsPage> {
   Future<void> _loadFeedbackData() async {
     setState(() => _isLoading = true);
     try {
-      final feedback = await DatabaseHelper.instance.getAllFeedback();
-      final analysis = FeedbackAIService.analyzeFeedback(feedback);
-      final trends = FeedbackAIService.getTrendAnalysis(feedback);
+      // 1. Fetch Local Feedback
+      final localFeedback = await DatabaseHelper.instance.getAllFeedback();
+      
+      // 2. Fetch Online Feedback from Firestore
+      List<PatientFeedback> onlineFeedback = [];
+      try {
+        final querySnapshot = await FirebaseFirestore.instance
+            .collection('patient_feedback')
+            .orderBy('created_at', descending: true)
+            .limit(50)
+            .get();
+            
+        onlineFeedback = querySnapshot.docs.map((doc) {
+          final data = doc.data();
+          // Map Firestore data to PatientFeedback model
+          // Note: Web form uses simple rating/comments, we'll map intelligently
+          final rating = data['rating'] as int? ?? 5;
+          return PatientFeedback(
+            id: doc.id,
+            patientId: data['patient_id']?.toString(),
+            patientName: data['patient_name']?.toString() ?? 'Anonymous',
+            overallRating: rating,
+            doctorRating: rating, // Web form simplified, assume overall applies
+            staffRating: rating,
+            cleanlinessRating: rating,
+            waitingTimeRating: rating,
+            comments: data['comments']?.toString(),
+            sentiment: rating >= 4 ? 'positive' : (rating <= 2 ? 'negative' : 'neutral'),
+            createdAt: (data['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          );
+        }).toList();
+        
+        print('🌐 Fetched ${onlineFeedback.length} feedback items from Firestore');
+      } catch (e) {
+        print('⚠️ Error fetching online feedback: $e');
+        // Continue with local data even if online fails
+      }
 
-      setState(() {
-        _allFeedback = feedback;
-        _aiAnalysis = analysis;
-        _trendAnalysis = trends;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
+      // 3. Merge Lists (Avoid duplicates if possible, though IDs will differ)
+      final allFeedback = [...onlineFeedback, ...localFeedback];
+      
+      // Sort by date descending
+      allFeedback.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      final analysis = FeedbackAIService.analyzeFeedback(allFeedback);
+      final trends = FeedbackAIService.getTrendAnalysis(allFeedback);
+
       if (mounted) {
+        setState(() {
+          _allFeedback = allFeedback;
+          _aiAnalysis = analysis;
+          _trendAnalysis = trends;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading feedback: $e'),

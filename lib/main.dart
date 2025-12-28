@@ -16,7 +16,9 @@ import 'patient_report_page.dart';
 import 'online_license_service.dart';
 import 'license_activation_page.dart';
 
-void main() {
+import 'dart:io';
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
@@ -102,48 +104,58 @@ class _StartupScreenState extends State<StartupScreen> {
   }
 
   Future<void> _checkAndNavigate() async {
-    // Check connectivity
-    final connectivity = await Connectivity().checkConnectivity();
-    final hasInternet = connectivity.contains(ConnectivityResult.mobile) ||
-                        connectivity.contains(ConnectivityResult.wifi) ||
-                        connectivity.contains(ConnectivityResult.ethernet);
+    try {
+      // Check connectivity
+      final connectivity = await Connectivity().checkConnectivity();
+      final hasInternet = connectivity.contains(ConnectivityResult.mobile) ||
+                          connectivity.contains(ConnectivityResult.wifi) ||
+                          connectivity.contains(ConnectivityResult.ethernet);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (!hasInternet) {
-      _showNoInternetDialog();
-      return;
-    }
+      if (!hasInternet) {
+        _showNoInternetDialog();
+        return;
+      }
 
-    // Initialize license service (runs quickly in background)
-    await OnlineLicenseService.initializeDemoIfNeeded();
-    await OnlineLicenseService.initialize();
-    
-    if (!mounted) return;
+      // Initialize license service (runs quickly in background)
+      await OnlineLicenseService.initializeDemoIfNeeded();
+      await OnlineLicenseService.initialize();
+      
+      if (!mounted) return;
 
-    // Check license
-    final licenseStatus = await OnlineLicenseService.checkLicenseStatus();
-    
-    if (!mounted) return;
+      // Check license
+      final licenseStatus = await OnlineLicenseService.checkLicenseStatus();
+      
+      if (!mounted) return;
 
-    if (licenseStatus == LicenseStatus.expired || licenseStatus == LicenseStatus.notFound) {
+      if (licenseStatus == LicenseStatus.expired || licenseStatus == LicenseStatus.notFound) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const LicenseActivationPage()),
+        );
+        return;
+      }
+
+      // Check onboarding
+      final prefs = await SharedPreferences.getInstance();
+      final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
+
+      if (!mounted) return;
+
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const LicenseActivationPage()),
+        MaterialPageRoute(
+          builder: (context) => hasSeenOnboarding ? const LoginSignupChoice() : const OnboardingScreen(),
+        ),
       );
-      return;
+    } catch (e) {
+      print('❌ Startup error: $e');
+      // On any error, still navigate to welcome to avoid stuck screen
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const WelcomePage()),
+        );
+      }
     }
-
-    // Check onboarding
-    final prefs = await SharedPreferences.getInstance();
-    final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
-
-    if (!mounted) return;
-
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => hasSeenOnboarding ? const WelcomePage() : const OnboardingScreen(),
-      ),
-    );
   }
 
   void _showNoInternetDialog() {

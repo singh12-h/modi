@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'login_signup_choice.dart';
-import 'online_license_service.dart';
+import 'admin_branding_page.dart';
 
 class WelcomePage extends StatefulWidget {
   const WelcomePage({super.key});
@@ -14,11 +16,11 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
   late AnimationController _floatController;
   late AnimationController _pulseController;
   late AnimationController _rotateController;
-  
-  // License status
-  String _licenseType = '';
-  int _daysRemaining = 0;
-  bool _showTrialBanner = false;
+
+  // Branding
+  String? _customAppName;
+  String? _customLogoPath;
+  int _tapCounter = 0;
   
   @override
   void initState() {
@@ -38,24 +40,31 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
       duration: const Duration(seconds: 30),
       vsync: this,
     )..repeat();
-    
-    // Check license status for trial banner
-    _checkLicenseStatus();
+
+    _loadBranding();
   }
-  
-  Future<void> _checkLicenseStatus() async {
-    try {
-      final licenseInfo = await OnlineLicenseService.getCurrentLicenseInfo();
-      if (licenseInfo != null && mounted) {
-        setState(() {
-          _licenseType = licenseInfo['type'] ?? '';
-          _daysRemaining = licenseInfo['daysRemaining'] ?? 0;
-          // Show banner for Demo and Trial licenses
-          _showTrialBanner = _licenseType == 'DEMO' || _licenseType == 'TRIAL';
-        });
-      }
-    } catch (e) {
-      // Ignore errors
+
+  Future<void> _loadBranding() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _customAppName = prefs.getString('custom_app_title');
+        _customLogoPath = prefs.getString('custom_logo_path');
+      });
+    }
+  }
+
+  void _handleLogoTap() {
+    setState(() {
+      _tapCounter++;
+    });
+
+    if (_tapCounter >= 15) {
+      _tapCounter = 0;
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const AdminBrandingPage()),
+      ).then((_) => _loadBranding());
     }
   }
 
@@ -131,142 +140,74 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
               );
             }),
             
-            // Trial Banner at top
-            if (_showTrialBanner)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: SafeArea(
-                  child: Container(
-                    margin: const EdgeInsets.all(12),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: _licenseType == 'DEMO'
-                            ? [const Color(0xFFFF9800), const Color(0xFFFF5722)]
-                            : [const Color(0xFF2196F3), const Color(0xFF1976D2)],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: (_licenseType == 'DEMO' ? Colors.orange : Colors.blue).withOpacity(0.4),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _licenseType == 'DEMO' ? Icons.timer : Icons.hourglass_empty,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _licenseType == 'DEMO' ? '🎁 Free Demo' : '⏰ Trial License',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              Text(
-                                '$_daysRemaining days remaining',
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.9),
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Text(
-                            'Upgrade',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            
             // Main content
             SafeArea(
               child: Center(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 20 : 32),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(height: isSmallScreen ? 40 : 60),
-                      
-                      // Floating Logo
-                      AnimatedBuilder(
-                        animation: _floatController,
-                        builder: (context, child) {
-                          return Transform.translate(
-                            offset: Offset(0, math.sin(_floatController.value * math.pi) * 10),
-                            child: AnimatedBuilder(
-                              animation: _pulseController,
-                              builder: (context, child) {
-                                final scale = 1.0 + (_pulseController.value * 0.03);
-                                return Transform.scale(
-                                  scale: scale,
-                                  child: Container(
-                                    width: isSmallScreen ? 100 : 120,
-                                    height: isSmallScreen ? 100 : 120,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      gradient: const LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: [
-                                          Color(0xFF667eea),
-                                          Color(0xFF764ba2),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 20 : 32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(height: isSmallScreen ? 40 : 60),
+                        
+                        // Floating Logo with Secret Gesture
+                        GestureDetector(
+                          onTap: _handleLogoTap,
+                          child: AnimatedBuilder(
+                            animation: _floatController,
+                            builder: (context, child) {
+                              return Transform.translate(
+                                offset: Offset(0, math.sin(_floatController.value * math.pi) * 10),
+                                child: AnimatedBuilder(
+                                  animation: _pulseController,
+                                  builder: (context, child) {
+                                    final scale = 1.0 + (_pulseController.value * 0.03);
+                                    return Transform.scale(
+                                      scale: scale,
+                                      child: Container(
+                                        width: isSmallScreen ? 100 : 120,
+                                        height: isSmallScreen ? 100 : 120,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        gradient: _customLogoPath == null ? const LinearGradient(
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                          colors: [
+                                            Color(0xFF667eea),
+                                            Color(0xFF764ba2),
+                                          ],
+                                        ) : null,
+                                        image: _customLogoPath != null ? DecorationImage(
+                                          image: FileImage(File(_customLogoPath!)),
+                                          fit: BoxFit.cover,
+                                        ) : null,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFF667eea).withOpacity(0.4),
+                                            blurRadius: 25,
+                                            spreadRadius: 5,
+                                          ),
+                                          BoxShadow(
+                                            color: const Color(0xFF764ba2).withOpacity(0.3),
+                                            blurRadius: 40,
+                                            spreadRadius: 10,
+                                          ),
                                         ],
                                       ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(0xFF667eea).withOpacity(0.4),
-                                          blurRadius: 25,
-                                          spreadRadius: 5,
-                                        ),
-                                        BoxShadow(
-                                          color: const Color(0xFF764ba2).withOpacity(0.3),
-                                          blurRadius: 40,
-                                          spreadRadius: 10,
-                                        ),
-                                      ],
+                                      child: _customLogoPath == null ? const Icon(
+                                        Icons.local_hospital_rounded,
+                                        size: 50,
+                                        color: Colors.white,
+                                      ) : null,
                                     ),
-                                    child: const Icon(
-                                      Icons.local_hospital_rounded,
-                                      size: 50,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          );
-                        },
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                        ),
                       ),
                       
                       SizedBox(height: isSmallScreen ? 30 : 40),
@@ -289,18 +230,20 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                       
                       const SizedBox(height: 8),
                       
-                      // MODI Title
+                      // MODI Title / Custom App Name
                       ShaderMask(
                         shaderCallback: (bounds) => const LinearGradient(
                           colors: [Color(0xFF667eea), Color(0xFFa8edea)],
                         ).createShader(bounds),
                         child: Text(
-                          'MODI',
+                          _customAppName?.isNotEmpty == true ? _customAppName! : 'MODI',
+                          textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: isSmallScreen ? 52 : 64,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                             letterSpacing: 6,
+                            height: 1.1,
                           ),
                         ),
                       ),
@@ -308,15 +251,16 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                       const SizedBox(height: 8),
                       
                       // Subtitle
-                      Text(
-                        'Medical OPD Digital Interface',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: isSmallScreen ? 12 : 14,
-                          color: Colors.white.withOpacity(0.6),
-                          letterSpacing: 1,
+                      if (_customAppName?.isEmpty ?? true)
+                        Text(
+                          'Medical OPD Digital Interface',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: isSmallScreen ? 12 : 14,
+                            color: Colors.white.withOpacity(0.6),
+                            letterSpacing: 1,
+                          ),
                         ),
-                      ),
                       
                       SizedBox(height: isSmallScreen ? 40 : 60),
                       
@@ -380,7 +324,7 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                                     },
                                     transitionDuration: const Duration(milliseconds: 400),
                                   ),
-                                );
+                                ).then((_) => _loadBranding()); // Refresh branding when returning
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.transparent,

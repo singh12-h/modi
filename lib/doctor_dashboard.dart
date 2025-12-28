@@ -728,7 +728,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
 
 
   // Add this method inside _DoctorDashboardState
-  void _navigateToRoute(String? route) {
+  Future<void> _navigateToRoute(String? route) async {
     if (route == null) return;
     
     print('🔵 Navigating to route: $route');

@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'dart:ui';
+import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'doctor_login_page.dart';
 import 'staff_login_page.dart';
+import 'online_license_service.dart';
+import 'license_activation_page.dart';
+import 'admin_branding_page.dart';
 
 class LoginSignupChoice extends StatefulWidget {
   const LoginSignupChoice({super.key});
@@ -16,6 +21,16 @@ class _LoginSignupChoiceState extends State<LoginSignupChoice> with TickerProvid
   late AnimationController _cardController;
   late Animation<double> _cardAnimation;
   int? _hoveredCard;
+  
+  // License status
+  String _licenseType = '';
+  int _daysRemaining = 0;
+  bool _showTrialBanner = false;
+
+  // Branding
+  String? _customAppName;
+  String? _customLogoPath;
+  int _tapCounter = 0;
   
   @override
   void initState() {
@@ -37,6 +52,103 @@ class _LoginSignupChoiceState extends State<LoginSignupChoice> with TickerProvid
     Future.delayed(const Duration(milliseconds: 300), () {
       _cardController.forward();
     });
+    
+    // Check license status for trial banner
+    _checkLicenseStatus();
+    _loadBranding();
+    _checkInternetConnection();
+  }
+
+  Future<void> _checkInternetConnection() async {
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
+        // Internet is working
+      }
+    } on SocketException catch (_) {
+      // No internet connection
+      if (mounted) {
+        _showNoInternetDialog();
+      }
+    }
+  }
+
+  void _showNoInternetDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => WillPopScope(
+        onWillPop: () async => false,
+        child: AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.wifi_off, color: Colors.red),
+              SizedBox(width: 10),
+              Text('No Internet'),
+            ],
+          ),
+          content: const Text(
+            'Active internet connection is required to use this application.\n\nPlease check your connection and try again.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _checkInternetConnection();
+              },
+              child: const Text('RETRY'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Future<void> _checkLicenseStatus() async {
+    try {
+      final licenseInfo = await OnlineLicenseService.getCurrentLicenseInfo();
+      if (licenseInfo != null && mounted) {
+        setState(() {
+          _licenseType = licenseInfo['type'] ?? '';
+          _daysRemaining = licenseInfo['daysRemaining'] ?? 0;
+          // Show banner for Demo and Trial licenses
+          _showTrialBanner = _licenseType == 'DEMO' || _licenseType == 'TRIAL';
+        });
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+  }
+
+  Future<void> _loadBranding() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _customAppName = prefs.getString('custom_app_title');
+        _customLogoPath = prefs.getString('custom_logo_path');
+      });
+    }
+  }
+
+  void _handleLogoTap() {
+    setState(() {
+      _tapCounter++;
+    });
+
+    if (_tapCounter >= 15) {
+      _tapCounter = 0;
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const AdminBrandingPage()),
+      ).then((_) => _loadBranding()); // Reload branding when returning
+    }
+  }
+  
+  void _showUpgradeDialog() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const LicenseActivationPage()),
+    );
   }
 
   @override
@@ -92,34 +204,6 @@ class _LoginSignupChoiceState extends State<LoginSignupChoice> with TickerProvid
               ),
             ),
 
-            // Back Button with glow
-            Positioned(
-              top: 50,
-              left: 20,
-              child: MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withOpacity(0.2)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF667eea).withOpacity(0.3),
-                          blurRadius: 20,
-                          spreadRadius: -5,
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 22),
-                  ),
-                ),
-              ),
-            ),
-
             // Main Content
             SafeArea(
               child: Center(
@@ -135,43 +219,52 @@ class _LoginSignupChoiceState extends State<LoginSignupChoice> with TickerProvid
                       children: [
                         const SizedBox(height: 40),
                         
-                        // Logo/Icon
-                        AnimatedBuilder(
-                          animation: _bgController,
-                          builder: (context, child) {
-                            return Container(
-                              width: 80,
-                              height: 80,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    const Color(0xFF667eea),
-                                    const Color(0xFF764ba2),
-                                    Color.lerp(
+                        // Logo/Icon with SECRET GESTURE
+                        GestureDetector(
+                          onTap: _handleLogoTap,
+                          child: AnimatedBuilder(
+                            animation: _bgController,
+                            builder: (context, child) {
+                              return Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: _customLogoPath == null ? LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
                                       const Color(0xFF667eea),
-                                      const Color(0xFF00f2fe),
-                                      (math.sin(_bgController.value * math.pi * 2) + 1) / 2,
-                                    )!,
+                                      const Color(0xFF764ba2),
+                                      Color.lerp(
+                                        const Color(0xFF667eea),
+                                        const Color(0xFF00f2fe),
+                                        (math.sin(_bgController.value * math.pi * 2) + 1) / 2,
+                                      )!,
+                                    ],
+                                  ) : null,
+                                  image: _customLogoPath != null 
+                                      ? DecorationImage(
+                                          image: FileImage(File(_customLogoPath!)),
+                                          fit: BoxFit.cover,
+                                        ) 
+                                      : null,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF667eea).withOpacity(0.5),
+                                      blurRadius: 30,
+                                      spreadRadius: 5,
+                                    ),
                                   ],
                                 ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF667eea).withOpacity(0.5),
-                                    blurRadius: 30,
-                                    spreadRadius: 5,
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.local_hospital_rounded,
-                                color: Colors.white,
-                                size: 40,
-                              ),
-                            );
-                          },
+                                child: _customLogoPath == null ? const Icon(
+                                  Icons.local_hospital_rounded,
+                                  color: Colors.white,
+                                  size: 40,
+                                ) : null,
+                              );
+                            },
+                          ),
                         ),
                         
                         const SizedBox(height: 32),
@@ -182,7 +275,7 @@ class _LoginSignupChoiceState extends State<LoginSignupChoice> with TickerProvid
                             colors: [Colors.white, Color(0xFFE0E0FF), Colors.white],
                           ).createShader(bounds),
                           child: Text(
-                            'Choose Your Role',
+                            _customAppName?.isNotEmpty == true ? _customAppName! : 'Choose Your Role',
                             style: TextStyle(
                               fontSize: isSmallScreen ? 32 : 42,
                               fontWeight: FontWeight.w800,
@@ -256,7 +349,7 @@ class _LoginSignupChoiceState extends State<LoginSignupChoice> with TickerProvid
                         const SizedBox(height: 20),
                         
                         Text(
-                          'MODI Healthcare System',
+                          _customAppName?.isNotEmpty == true ? _customAppName! : 'MODI Healthcare System',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.white.withOpacity(0.4),
@@ -272,6 +365,129 @@ class _LoginSignupChoiceState extends State<LoginSignupChoice> with TickerProvid
                 ),
               ),
             ),
+
+            // Back Button with glow
+            Positioned(
+              top: 50,
+              left: 20,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: () {
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    } else {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => const WelcomePage()),
+                      );
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF667eea).withOpacity(0.3),
+                          blurRadius: 20,
+                          spreadRadius: -5,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 22),
+                  ),
+                ),
+              ),
+            ),
+
+            // Trial/Demo Banner at top
+            if (_showTrialBanner)
+              Positioned(
+                top: 50,
+                left: 85, // Increased spacing to avoid overlap with back button
+                right: 20,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: _licenseType == 'DEMO'
+                          ? [const Color(0xFFFF9800), const Color(0xFFFF5722)]
+                          : [const Color(0xFF2196F3), const Color(0xFF1976D2)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (_licenseType == 'DEMO' ? Colors.orange : Colors.blue).withOpacity(0.4),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _licenseType == 'DEMO' ? Icons.timer : Icons.hourglass_empty,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _licenseType == 'DEMO' ? '🎁 Free Demo' : '⏰ Trial License',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              '$_daysRemaining days remaining',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 11,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8), 
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _showUpgradeDialog,
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.25),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Text(
+                              'Upgrade',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -442,7 +658,7 @@ class _LoginSignupChoiceState extends State<LoginSignupChoice> with TickerProvid
                               color: Colors.white.withOpacity(0.85),
                               height: 1.4,
                               fontWeight: FontWeight.w400,
-                            ),
+                              ),
                           ),
                         ],
                       ),

@@ -669,12 +669,18 @@ class _PatientRegistrationFormState extends State<PatientRegistrationForm> {
     );
   }
 
-  InputDecoration _inputDecoration(String label, IconData icon) {
+  InputDecoration _inputDecoration(String label, IconData icon, {int maxLines = 1}) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Padding(
-        padding: const EdgeInsets.only(top: 0),
-        child: Icon(icon, color: Colors.grey[400], size: 22),
+      prefixIcon: Column(
+        mainAxisAlignment: maxLines > 1 ? MainAxisAlignment.start : MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: EdgeInsets.only(top: maxLines > 1 ? 14 : 0),
+            child: Icon(icon, color: Colors.grey[400], size: 22),
+          ),
+        ],
       ),
       alignLabelWithHint: true,
       border: OutlineInputBorder(
@@ -1101,12 +1107,15 @@ Thank you for choosing MODI CLINIC! 🙏''';
                       },
                     ),
                   },
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        children: [
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 800),
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            children: [
                           _buildPhotoSection(),
                           const SizedBox(height: 24),
 
@@ -1483,7 +1492,7 @@ Thank you for choosing MODI CLINIC! 🙏''';
           FocusScope.of(context).requestFocus(nextFocus);
         }
       },
-      decoration: _inputDecoration(label, icon),
+      decoration: _inputDecoration(label, icon, maxLines: maxLines),
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       maxLines: maxLines,
       validator: (value) {

@@ -318,7 +318,12 @@ class _DoctorRegistrationPageState extends State<DoctorRegistrationPage>
               children: [
                 _buildHeader(),
                 Expanded(
-                  child: _buildRegistrationForm(),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 800),
+                      child: _buildRegistrationForm(),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -775,8 +780,18 @@ class _DoctorRegistrationPageState extends State<DoctorRegistrationPage>
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        prefixIcon: Icon(icon, color: const Color(0xFF1A237E)),
+        prefixIcon: Column(
+          mainAxisAlignment: maxLines > 1 ? MainAxisAlignment.start : MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: EdgeInsets.only(top: maxLines > 1 ? 14 : 0),
+              child: Icon(icon, color: const Color(0xFF1A237E)),
+            ),
+          ],
+        ),
         suffixIcon: suffix,
+        alignLabelWithHint: true,
         filled: true,
         fillColor: Colors.grey.shade50,
         border: OutlineInputBorder(

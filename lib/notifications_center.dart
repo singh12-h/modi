@@ -132,24 +132,68 @@ class _NotificationsCenterState extends State<NotificationsCenter> with SingleTi
   }
 
   Future<void> _dismissNotification(int index) async {
-    // In a real app, you might want to mark as read in DB.
-    // For now, just remove from list visually.
     final removedItem = _notifications[index];
+    
+    // Actually handle the notification based on type
+    try {
+      await _handleNotificationAction(removedItem);
+    } catch (e) {
+      print('Error handling notification action: $e');
+    }
+    
     setState(() {
       _notifications.removeAt(index);
     });
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Notification dismissed'),
+        content: const Text('Notification cleared'),
+        backgroundColor: Colors.green,
         action: SnackBarAction(
           label: 'Undo',
+          textColor: Colors.white,
           onPressed: () {
             setState(() {
               _notifications.insert(index, removedItem);
             });
           },
         ),
+      ),
+    );
+  }
+
+  Future<void> _handleNotificationAction(_NotificationItem notification) async {
+    // Extract ID from notification id (format: type_actualId)
+    final parts = notification.id.split('_');
+    if (parts.length < 2) return;
+    
+    final type = parts[0];
+    final actualId = parts.sublist(1).join('_');
+    
+    switch (type) {
+      case 'apt':
+        // Mark appointment as confirmed/processed
+        await DatabaseHelper.instance.updateAppointmentStatus(actualId, 'confirmed');
+        break;
+      case 'pay':
+        // Mark payment as read (we can add a 'read' field or just skip for now)
+        // For now, payments require manual action in payment screen
+        break;
+      case 'fu':
+        // Follow-up notifications are informational - just dismissed locally
+        break;
+    }
+  }
+
+  Future<void> _clearAllNotifications() async {
+    setState(() {
+      _notifications.clear();
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('All notifications cleared'),
+        backgroundColor: Colors.green,
       ),
     );
   }
@@ -184,6 +228,12 @@ class _NotificationsCenterState extends State<NotificationsCenter> with SingleTi
           ),
         ),
         actions: [
+          if (_notifications.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.clear_all_rounded, color: Colors.white),
+              tooltip: 'Clear All',
+              onPressed: _clearAllNotifications,
+            ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Colors.white),
             onPressed: _loadNotifications,

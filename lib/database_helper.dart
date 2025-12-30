@@ -1467,6 +1467,45 @@ class DatabaseHelper {
     );
     return List.generate(maps.length, (i) => PaymentInstallment.fromMap(maps[i]));
   }
+  
+  // Clear all data (For Reset Feature)
+  Future<void> clearAllData() async {
+    if (kIsWeb) {
+      _webPatients.clear();
+      _webAppointments.clear();
+      _webConsultations.clear();
+      _webPrescriptions.clear();
+      _webMedicalHistory.clear();
+      _webStaff.clear();
+      _webInstallments.clear();
+      _webTransactions.clear();
+      //_webPayments.clear();
+      await _saveWebData();
+      return;
+    }
+    
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('patients');
+      await txn.delete('appointments');
+      await txn.delete('consultations');
+      await txn.delete('prescriptions');
+      await txn.delete('medical_history');
+      await txn.delete('payments');
+      await txn.delete('payment_installments');
+      await txn.delete('payment_transactions');
+      await txn.delete('staff');
+    });
+  }
+    final db = await database;
+    final maps = await db.query(
+      'payment_installments',
+      where: 'status = ?',
+      whereArgs: [status],
+      orderBy: 'created_at DESC',
+    );
+    return List.generate(maps.length, (i) => PaymentInstallment.fromMap(maps[i]));
+  }
 
   // Get pending/partial payment installments
   Future<List<PaymentInstallment>> getPendingPaymentInstallments() async {

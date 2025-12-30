@@ -169,210 +169,211 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                                       child: Container(
                                         width: isSmallScreen ? 100 : 120,
                                         height: isSmallScreen ? 100 : 120,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        gradient: _customLogoPath == null ? const LinearGradient(
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                          colors: [
-                                            Color(0xFF667eea),
-                                            Color(0xFF764ba2),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          gradient: _customLogoPath == null ? const LinearGradient(
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                            colors: [
+                                              Color(0xFF667eea),
+                                              Color(0xFF764ba2),
+                                            ],
+                                          ) : null,
+                                          image: _customLogoPath != null ? DecorationImage(
+                                            image: FileImage(File(_customLogoPath!)),
+                                            fit: BoxFit.cover,
+                                          ) : null,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: const Color(0xFF667eea).withOpacity(0.4),
+                                              blurRadius: 25,
+                                              spreadRadius: 5,
+                                            ),
+                                            BoxShadow(
+                                              color: const Color(0xFF764ba2).withOpacity(0.3),
+                                              blurRadius: 40,
+                                              spreadRadius: 10,
+                                            ),
                                           ],
+                                        ),
+                                        child: _customLogoPath == null ? const Icon(
+                                          Icons.local_hospital_rounded,
+                                          size: 50,
+                                          color: Colors.white,
                                         ) : null,
-                                        image: _customLogoPath != null ? DecorationImage(
-                                          image: FileImage(File(_customLogoPath!)),
-                                          fit: BoxFit.cover,
-                                        ) : null,
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: const Color(0xFF667eea).withOpacity(0.4),
-                                            blurRadius: 25,
-                                            spreadRadius: 5,
-                                          ),
-                                          BoxShadow(
-                                            color: const Color(0xFF764ba2).withOpacity(0.3),
-                                            blurRadius: 40,
-                                            spreadRadius: 10,
-                                          ),
-                                        ],
                                       ),
-                                      child: _customLogoPath == null ? const Icon(
-                                        Icons.local_hospital_rounded,
-                                        size: 50,
-                                        color: Colors.white,
-                                      ) : null,
+                                    );
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        
+                        SizedBox(height: isSmallScreen ? 30 : 40),
+                        
+                        // Welcome Text
+                        ShaderMask(
+                          shaderCallback: (bounds) => const LinearGradient(
+                            colors: [Color(0xFFa8edea), Color(0xFFfed6e3)],
+                          ).createShader(bounds),
+                          child: Text(
+                            'Welcome to',
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 16 : 20,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.white,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 8),
+                        
+                        // MODI Title / Custom App Name
+                        ShaderMask(
+                          shaderCallback: (bounds) => const LinearGradient(
+                            colors: [Color(0xFF667eea), Color(0xFFa8edea)],
+                          ).createShader(bounds),
+                          child: Text(
+                            _customAppName?.isNotEmpty == true ? _customAppName! : 'MODI',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 52 : 64,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              letterSpacing: 6,
+                              height: 1.1,
+                            ),
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 8),
+                        
+                        // Subtitle
+                        if (_customAppName?.isEmpty ?? true)
+                          Text(
+                            'Medical OPD Digital Interface',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 12 : 14,
+                              color: Colors.white.withOpacity(0.6),
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        
+                        SizedBox(height: isSmallScreen ? 40 : 60),
+                        
+                        // Feature Cards
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          alignment: WrapAlignment.center,
+                          children: [
+                            _buildGlassCard(
+                              icon: Icons.speed_rounded,
+                              title: 'Fast',
+                              subtitle: 'Workflow',
+                              color: const Color(0xFF667eea),
+                              isSmall: isSmallScreen,
+                            ),
+                            _buildGlassCard(
+                              icon: Icons.security_rounded,
+                              title: 'Secure',
+                              subtitle: 'Data',
+                              color: const Color(0xFF764ba2),
+                              isSmall: isSmallScreen,
+                            ),
+                            _buildGlassCard(
+                              icon: Icons.cloud_done_rounded,
+                              title: 'Cloud',
+                              subtitle: 'Backup',
+                              color: const Color(0xFFa8edea),
+                              isSmall: isSmallScreen,
+                            ),
+                          ],
+                        ),
+                        
+                        SizedBox(height: isSmallScreen ? 50 : 70),
+                        
+                        // Get Started Button
+                        AnimatedBuilder(
+                          animation: _pulseController,
+                          builder: (context, child) {
+                            return Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(30),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF667eea).withOpacity(
+                                      0.3 + (_pulseController.value * 0.2),
                                     ),
-                                  );
+                                    blurRadius: 20 + (_pulseController.value * 10),
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  Navigator.of(context).push(
+                                    PageRouteBuilder(
+                                      pageBuilder: (context, animation, secondaryAnimation) =>
+                                          const LoginSignupChoice(),
+                                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                        return FadeTransition(opacity: animation, child: child);
+                                      },
+                                      transitionDuration: const Duration(milliseconds: 400),
+                                    ),
+                                  ).then((_) => _loadBranding()); // Refresh branding when returning
                                 },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.zero,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                ),
+                                child: Ink(
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                                    ),
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: isSmallScreen ? 40 : 50,
+                                      vertical: isSmallScreen ? 16 : 18,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Get Started',
+                                          style: TextStyle(
+                                            fontSize: isSmallScreen ? 16 : 18,
+                                            fontWeight: FontWeight.w600,
+                                            letterSpacing: 1,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        const Icon(Icons.arrow_forward_rounded, size: 22),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ),
                             );
                           },
                         ),
-                      ),
-                      
-                      SizedBox(height: isSmallScreen ? 30 : 40),
-                      
-                      // Welcome Text
-                      ShaderMask(
-                        shaderCallback: (bounds) => const LinearGradient(
-                          colors: [Color(0xFFa8edea), Color(0xFFfed6e3)],
-                        ).createShader(bounds),
-                        child: Text(
-                          'Welcome to',
-                          style: TextStyle(
-                            fontSize: isSmallScreen ? 16 : 20,
-                            fontWeight: FontWeight.w400,
-                            color: Colors.white,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 8),
-                      
-                      // MODI Title / Custom App Name
-                      ShaderMask(
-                        shaderCallback: (bounds) => const LinearGradient(
-                          colors: [Color(0xFF667eea), Color(0xFFa8edea)],
-                        ).createShader(bounds),
-                        child: Text(
-                          _customAppName?.isNotEmpty == true ? _customAppName! : 'MODI',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: isSmallScreen ? 52 : 64,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 6,
-                            height: 1.1,
-                          ),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 8),
-                      
-                      // Subtitle
-                      if (_customAppName?.isEmpty ?? true)
-                        Text(
-                          'Medical OPD Digital Interface',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: isSmallScreen ? 12 : 14,
-                            color: Colors.white.withOpacity(0.6),
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      
-                      SizedBox(height: isSmallScreen ? 40 : 60),
-                      
-                      // Feature Cards
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        alignment: WrapAlignment.center,
-                        children: [
-                          _buildGlassCard(
-                            icon: Icons.speed_rounded,
-                            title: 'Fast',
-                            subtitle: 'Workflow',
-                            color: const Color(0xFF667eea),
-                            isSmall: isSmallScreen,
-                          ),
-                          _buildGlassCard(
-                            icon: Icons.security_rounded,
-                            title: 'Secure',
-                            subtitle: 'Data',
-                            color: const Color(0xFF764ba2),
-                            isSmall: isSmallScreen,
-                          ),
-                          _buildGlassCard(
-                            icon: Icons.cloud_done_rounded,
-                            title: 'Cloud',
-                            subtitle: 'Backup',
-                            color: const Color(0xFFa8edea),
-                            isSmall: isSmallScreen,
-                          ),
-                        ],
-                      ),
-                      
-                      SizedBox(height: isSmallScreen ? 50 : 70),
-                      
-                      // Get Started Button
-                      AnimatedBuilder(
-                        animation: _pulseController,
-                        builder: (context, child) {
-                          return Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(30),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF667eea).withOpacity(
-                                    0.3 + (_pulseController.value * 0.2),
-                                  ),
-                                  blurRadius: 20 + (_pulseController.value * 10),
-                                  spreadRadius: 2,
-                                ),
-                              ],
-                            ),
-                            child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.of(context).push(
-                                  PageRouteBuilder(
-                                    pageBuilder: (context, animation, secondaryAnimation) =>
-                                        const LoginSignupChoice(),
-                                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                      return FadeTransition(opacity: animation, child: child);
-                                    },
-                                    transitionDuration: const Duration(milliseconds: 400),
-                                  ),
-                                ).then((_) => _loadBranding()); // Refresh branding when returning
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                foregroundColor: Colors.white,
-                                padding: EdgeInsets.zero,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                ),
-                              ),
-                              child: Ink(
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                                  ),
-                                  borderRadius: BorderRadius.circular(30),
-                                ),
-                                child: Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: isSmallScreen ? 40 : 50,
-                                    vertical: isSmallScreen ? 16 : 18,
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        'Get Started',
-                                        style: TextStyle(
-                                          fontSize: isSmallScreen ? 16 : 18,
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: 1,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      const Icon(Icons.arrow_forward_rounded, size: 22),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      
-                      SizedBox(height: isSmallScreen ? 40 : 60),
-                    ],
+                        
+                        SizedBox(height: isSmallScreen ? 40 : 60),
+                      ],
                   ),
                 ),
+              ),
               ),
             ),
           ],

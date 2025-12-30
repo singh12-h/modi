@@ -8,6 +8,7 @@ import 'staff_login_page.dart';
 import 'online_license_service.dart';
 import 'license_activation_page.dart';
 import 'admin_branding_page.dart';
+import 'welcome_page.dart';
 
 class LoginSignupChoice extends StatefulWidget {
   const LoginSignupChoice({super.key});

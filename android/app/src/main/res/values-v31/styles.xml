@@ -11,7 +11,8 @@
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
-        <item name="android:windowSplashScreenBackground">#1a1a2e</item>
+        <item name="android:windowSplashScreenBackground">#ffffff</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/android12splash</item>
     </style>
     <!-- Normal theme after splash -->
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">

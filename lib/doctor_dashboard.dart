@@ -999,21 +999,25 @@ class _DoctorDashboardState extends State<DoctorDashboard> with TickerProviderSt
             ],
             SizedBox(width: Responsive.isMobile(context) ? 4 : 8),
             GestureDetector(
-              onTap: () {
-                Navigator.push(
+              onTap: () async {
+                await Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const FollowUpAppointments()),
                 );
+                // Refresh counts when returning from follow-ups
+                _loadPatients();
               },
               child: _buildTopBarIcon(Icons.event_available, _followUpCount),
             ),
             SizedBox(width: Responsive.isMobile(context) ? 4 : 8),
             GestureDetector(
-              onTap: () {
-                Navigator.push(
+              onTap: () async {
+                await Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const NotificationsCenter()),
                 );
+                // Refresh counts when returning from notifications
+                _loadPatients();
               },
               child: _buildTopBarIcon(Icons.notifications_rounded, _notificationCount),
             ),

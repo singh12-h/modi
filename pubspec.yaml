@@ -127,12 +127,12 @@ flutter_native_splash:
   color: "#ffffff"
   
   # App logo to display centered
-  image: assets/icon/splash.screen.png
+  image: assets/icon/jk.screen.png
   
   # Android 12+ specific settings (adaptive icon)
   android_12:
     color: "#ffffff"
-    image: assets/icon/splash.screen.png
+    image: assets/icon/jk.screen.png
     icon_background_color: "#ffffff"
   
   # Enable fullscreen mode

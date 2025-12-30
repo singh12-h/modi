@@ -1,14 +1,14 @@
 flutter_native_splash:
-  # Only dark background - NO logo
-  color: "#1a1a2e"
+  # White background so logo blends in
+  color: "#ffffff"
   
-  # NO image - just plain dark background
-  # image: assets/icon/app_icon.png  # REMOVED
+  # Centered logo image for splash screen
+  image: assets/icon/jk.screen.png
   
-  # Android 12+ specific settings - no icon
+  # Android 12+ specific settings
   android_12:
-    color: "#1a1a2e"
-    # No image for clean transition
+    color: "#ffffff"
+    image: assets/icon/jk.screen.png
   
   # Fullscreen mode
   fullscreen: true
@@ -21,3 +21,4 @@ flutter_native_splash:
   
   # Web specific settings
   web: true
+  web_image_mode: center

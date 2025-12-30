@@ -672,16 +672,7 @@ class _PatientRegistrationFormState extends State<PatientRegistrationForm> {
   InputDecoration _inputDecoration(String label, IconData icon, {int maxLines = 1}) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Column(
-        mainAxisAlignment: maxLines > 1 ? MainAxisAlignment.start : MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: EdgeInsets.only(top: maxLines > 1 ? 14 : 0),
-            child: Icon(icon, color: Colors.grey[400], size: 22),
-          ),
-        ],
-      ),
+      prefixIcon: Icon(icon, color: Colors.grey[400], size: 22),
       alignLabelWithHint: true,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -1116,67 +1107,67 @@ Thank you for choosing MODI CLINIC! 🙏''';
                           key: _formKey,
                           child: Column(
                             children: [
-                          _buildPhotoSection(),
-                          const SizedBox(height: 24),
+                              _buildPhotoSection(),
+                              const SizedBox(height: 24),
 
-                          // Visit Type Indicator
-                          if (_isPreviousPatient)
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFF10B981),
-                                    Color(0xFF059669),
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(
-                                      0xFF10B981,
-                                    ).withOpacity(0.3),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.history,
-                                    color: Colors.white,
-                                    size: 32,
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'FOLLOW-UP VISIT',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Last visit: ${_formatDate(_previousVisit!.lastVisit ?? _previousVisit!.registeredDate!)} • Total visits: ${_previousVisit!.consultationCount + 1}',
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 13,
-                                          ),
-                                        ),
+                              // Visit Type Indicator
+                              if (_isPreviousPatient)
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFF10B981),
+                                        Color(0xFF059669),
                                       ],
                                     ),
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(
+                                          0xFF10B981,
+                                        ).withOpacity(0.3),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            ),
-                          if (_isPreviousPatient) const SizedBox(height: 24),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.history,
+                                        color: Colors.white,
+                                        size: 32,
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'FOLLOW-UP VISIT',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Last visit: ${_formatDate(_previousVisit!.lastVisit ?? _previousVisit!.registeredDate!)} • Total visits: ${_previousVisit!.consultationCount + 1}',
+                                              style: const TextStyle(
+                                                color: Colors.white70,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              if (_isPreviousPatient) const SizedBox(height: 24),
 
                           _buildCard(
                             title: 'Personal Information',
@@ -1464,6 +1455,8 @@ Thank you for choosing MODI CLINIC! 🙏''';
                     ),
                   ),
                 ),
+              ),
+            ),
               ),
             ),
           ],
